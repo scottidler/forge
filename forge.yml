@@ -1,0 +1,18 @@
+forge:
+  version: "1"
+  home: ~/repos/scottidler/forge
+  store: ~/.local/share/forge
+
+  pipelines:
+    techspec: pipelines/techspec.yml
+    research: pipelines/research.yml
+    confluence-doc: pipelines/confluence-doc.yml
+    status-update: pipelines/status-update.yml
+    jira-epic: pipelines/jira-epic.yml
+
+  fabric:
+    binary: fabric
+    model: ""
+
+  global_references:
+    - references/voice.md
