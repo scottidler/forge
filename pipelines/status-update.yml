@@ -1,0 +1,23 @@
+name: status-update
+description: "Create a status update from notes and recent activity"
+
+output:
+  destination: "docs/"
+  filename: "{date}-{slug}-status.md"
+
+references:
+  - references/voice.md
+  - references/templates/status-update.md
+
+stages:
+  - name: gather
+    description: "Gather accomplishments, blockers, and next steps from notes"
+    pattern: extract_article_wisdom
+    review: false
+
+  - name: draft
+    description: "Write concise status update following template"
+    pattern: write_document
+    references:
+      - references/templates/status-update.md
+    review: true

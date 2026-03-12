@@ -1,0 +1,39 @@
+name: techspec
+description: "Research, outline, draft, and review a technical specification"
+
+output:
+  destination: "docs/design/"
+  filename: "{date}-{slug}.md"
+
+references:
+  - references/voice.md
+  - references/templates/techspec.md
+
+stages:
+  - name: research
+    description: "Gather context, explore prior art, identify constraints and dependencies"
+    pattern: extract_article_wisdom
+    references:
+      - references/rubrics/research-rubric.md
+    review: false
+
+  - name: outline
+    description: "Create structural outline with section headers and key points"
+    pattern: create_outline
+    references:
+      - references/templates/techspec.md
+    review: true
+
+  - name: draft
+    description: "Write full draft following outline and voice"
+    pattern: write_document
+    references:
+      - references/voice.md
+    review: true
+
+  - name: review
+    description: "Self-review against rubric, produce final version"
+    pattern: review_against_rubric
+    references:
+      - references/rubrics/techspec-rubric.md
+    review: true

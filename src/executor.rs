@@ -242,6 +242,17 @@ fn compose_stage_input(
     Ok(parts.join("\n\n"))
 }
 
+/// Check if fabric is available in PATH
+pub fn check_fabric_available(binary: &str) -> Result<()> {
+    match Command::new("which").arg(binary).output() {
+        Ok(output) if output.status.success() => Ok(()),
+        _ => Err(eyre!(
+            "'{}' not found in PATH — install fabric or set fabric.binary in forge.yml",
+            binary
+        )),
+    }
+}
+
 fn call_fabric(binary: &str, pattern: &str, model: &str, input: &str) -> Result<String> {
     let mut cmd = Command::new(binary);
     cmd.arg("-p").arg(pattern);

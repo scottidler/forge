@@ -1,0 +1,30 @@
+name: confluence-doc
+description: "Create a Confluence-ready document from research and outline"
+
+output:
+  destination: "docs/"
+  filename: "{date}-{slug}.md"
+
+references:
+  - references/voice.md
+  - references/templates/confluence-doc.md
+
+stages:
+  - name: research
+    description: "Gather context and background for the document topic"
+    pattern: extract_article_wisdom
+    review: false
+
+  - name: outline
+    description: "Create document outline following Confluence template structure"
+    pattern: create_outline
+    references:
+      - references/templates/confluence-doc.md
+    review: true
+
+  - name: draft
+    description: "Write full document following outline, voice, and Confluence formatting"
+    pattern: write_document
+    references:
+      - references/voice.md
+    review: true

@@ -1,0 +1,27 @@
+name: research
+description: "Research a topic and produce a structured analysis"
+
+output:
+  destination: "docs/"
+  filename: "{date}-{slug}-research.md"
+
+references:
+  - references/voice.md
+
+stages:
+  - name: gather
+    description: "Gather raw information, links, quotes, and data points about the topic"
+    pattern: extract_article_wisdom
+    review: false
+
+  - name: analyze
+    description: "Analyze gathered information, identify patterns, compare alternatives"
+    pattern: analyze_paper
+    review: true
+
+  - name: synthesize
+    description: "Synthesize analysis into a structured document with recommendations"
+    pattern: write_document
+    references:
+      - references/voice.md
+    review: true

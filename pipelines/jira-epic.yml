@@ -1,0 +1,25 @@
+name: jira-epic
+description: "Create a Jira epic description with stories from research"
+
+output:
+  destination: "docs/"
+  filename: "{date}-{slug}-epic.md"
+
+references:
+  - references/voice.md
+
+stages:
+  - name: research
+    description: "Gather requirements, constraints, and technical context"
+    pattern: extract_article_wisdom
+    review: false
+
+  - name: breakdown
+    description: "Break work into stories with acceptance criteria"
+    pattern: create_outline
+    review: true
+
+  - name: draft
+    description: "Write epic description and story details"
+    pattern: write_document
+    review: true
