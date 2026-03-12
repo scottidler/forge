@@ -271,3 +271,171 @@ fn cmd_history(config: &ForgeConfig, pipeline_filter: Option<&str>, limit: usize
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::store::{PipelineRun, RunStatus};
+    use tempfile::TempDir;
+
+    fn test_config(dir: &std::path::Path) -> ForgeConfig {
+        ForgeConfig {
+            version: "1".to_string(),
+            home: dir.to_string_lossy().to_string(),
+            store: dir.join("store").to_string_lossy().to_string(),
+            pipelines: std::collections::HashMap::new(),
+            fabric: crate::config::FabricConfig::default(),
+            global_references: vec![],
+        }
+    }
+
+    #[test]
+    fn test_cmd_ls_empty_store() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config(dir.path());
+        // Should not error when store dir doesn't exist
+        assert!(cmd_ls(&config, false).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_ls_with_runs() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config(dir.path());
+        let store_dir = config.store_dir().expect("failed to get store dir");
+        std::fs::create_dir_all(&store_dir).expect("failed to create store dir");
+        let mut store = store::open_store(&store_dir).expect("failed to open store");
+
+        let run = PipelineRun::new(
+            "techspec".to_string(),
+            "/tmp/test".to_string(),
+            None,
+            None,
+            vec!["research".to_string()],
+        );
+        store.create(run).expect("failed to create run");
+
+        assert!(cmd_ls(&config, false).is_ok());
+        assert!(cmd_ls(&config, true).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_history_empty() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config(dir.path());
+        assert!(cmd_history(&config, None, 10).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_history_with_filter() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config(dir.path());
+        let store_dir = config.store_dir().expect("failed to get store dir");
+        std::fs::create_dir_all(&store_dir).expect("failed to create store dir");
+        let mut store = store::open_store(&store_dir).expect("failed to open store");
+
+        let run = PipelineRun::new(
+            "techspec".to_string(),
+            "/tmp/test".to_string(),
+            None,
+            None,
+            vec!["research".to_string()],
+        );
+        store.create(run).expect("failed to create run");
+
+        assert!(cmd_history(&config, Some("techspec"), 10).is_ok());
+        assert!(cmd_history(&config, Some("nonexistent"), 10).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_show_by_id() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config(dir.path());
+        let store_dir = config.store_dir().expect("failed to get store dir");
+        std::fs::create_dir_all(&store_dir).expect("failed to create store dir");
+        let mut store = store::open_store(&store_dir).expect("failed to open store");
+
+        let run = PipelineRun::new(
+            "techspec".to_string(),
+            "/tmp/test".to_string(),
+            None,
+            Some("my-slug".to_string()),
+            vec!["research".to_string(), "outline".to_string()],
+        );
+        let run_id = run.id.clone();
+        store.create(run).expect("failed to create run");
+
+        assert!(cmd_show(&config, Some(&run_id)).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_show_not_found() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config(dir.path());
+        let store_dir = config.store_dir().expect("failed to get store dir");
+        std::fs::create_dir_all(&store_dir).expect("failed to create store dir");
+        let _ = store::open_store(&store_dir).expect("failed to open store");
+
+        assert!(cmd_show(&config, Some("nonexistent-id")).is_err());
+    }
+
+    #[test]
+    fn test_cmd_pipelines_empty() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config(dir.path());
+        assert!(cmd_pipelines(&config).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_pipelines_with_entries() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let mut config = test_config(dir.path());
+        config
+            .pipelines
+            .insert("techspec".to_string(), "pipelines/techspec.yml".to_string());
+        assert!(cmd_pipelines(&config).is_ok());
+    }
+
+    #[test]
+    fn test_store_query_by_status() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let store_dir = dir.path().join("store");
+        std::fs::create_dir_all(&store_dir).expect("failed to create store dir");
+        let mut store = store::open_store(&store_dir).expect("failed to open store");
+
+        // Create two runs with different statuses
+        let run1 = PipelineRun::new(
+            "techspec".to_string(),
+            "/tmp/a".to_string(),
+            None,
+            None,
+            vec!["s1".to_string()],
+        );
+        let mut run2 = PipelineRun::new(
+            "research".to_string(),
+            "/tmp/b".to_string(),
+            None,
+            None,
+            vec!["s1".to_string()],
+        );
+        run2.status = RunStatus::Completed;
+        run2.touch();
+
+        store.create(run1).expect("failed to create run1");
+        store.create(run2).expect("failed to create run2");
+
+        // Query only Unpacked
+        let unpacked: Vec<PipelineRun> = store
+            .list(&[taskstore::Filter {
+                field: "status".to_string(),
+                op: taskstore::FilterOp::Eq,
+                value: taskstore::IndexValue::String("Unpacked".to_string()),
+            }])
+            .expect("failed to list");
+        assert_eq!(unpacked.len(), 1);
+        assert_eq!(unpacked[0].pipeline, "techspec");
+
+        // Query all
+        let all: Vec<PipelineRun> = store.list(&[]).expect("failed to list");
+        assert_eq!(all.len(), 2);
+    }
+}
