@@ -26,6 +26,7 @@ pub fn run_command(command: &Command, config: &ForgeConfig) -> Result<()> {
         Command::Ls { all } => cmd_ls(config, *all),
         Command::Show { run_id } => cmd_show(config, run_id.as_deref()),
         Command::History { pipeline, limit } => cmd_history(config, pipeline.as_deref(), *limit),
+        Command::Init { .. } => unreachable!("Init is handled before config loading"),
     }
 }
 

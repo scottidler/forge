@@ -42,6 +42,11 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
+    // Init must run before config loading since it creates the config
+    if let forge::cli::Command::Init { force } = &cli.command {
+        return forge::init::init(*force);
+    }
+
     let config = ForgeConfig::load(cli.config.as_ref()).context("Failed to load forge configuration")?;
 
     info!("Starting with config from: {:?}", cli.config);

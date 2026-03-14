@@ -99,4 +99,11 @@ pub enum Command {
 
     /// List all available pipeline definitions
     Pipelines,
+
+    /// Initialize forge configuration in ~/.config/forge/
+    Init {
+        /// Overwrite existing files
+        #[arg(long)]
+        force: bool,
+    },
 }
