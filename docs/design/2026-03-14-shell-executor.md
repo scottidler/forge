@@ -2,7 +2,7 @@
 
 **Author:** Scott Idler
 **Date:** 2026-03-14
-**Status:** Draft
+**Status:** Superseded by `2026-03-14-command-executor.md`
 **Review Passes Completed:** 5/5
 
 ## Summary

@@ -487,4 +487,104 @@ mod tests {
         let pipeline = test_pipeline();
         assert!(determine_stage_index(&run, &pipeline, Some("nonexistent")).is_err());
     }
+
+    #[test]
+    fn test_expand_template_all_vars() {
+        let mut vars = std::collections::HashMap::new();
+        vars.insert("stage", "research".to_string());
+        vars.insert("stage_num", "1".to_string());
+        vars.insert("forge_dir", "/tmp/.forge".to_string());
+        vars.insert("run_id", "abc-123".to_string());
+        vars.insert("pipeline", "techspec".to_string());
+
+        assert_eq!(expand_template("{stage}", &vars), "research");
+        assert_eq!(expand_template("{stage_num}", &vars), "1");
+        assert_eq!(expand_template("{forge_dir}", &vars), "/tmp/.forge");
+        assert_eq!(expand_template("{run_id}", &vars), "abc-123");
+        assert_eq!(expand_template("{pipeline}", &vars), "techspec");
+    }
+
+    #[test]
+    fn test_expand_template_mixed_text() {
+        let mut vars = std::collections::HashMap::new();
+        vars.insert("stage", "research".to_string());
+        assert_eq!(expand_template("--output={stage}.md", &vars), "--output=research.md");
+    }
+
+    #[test]
+    fn test_expand_template_unrecognized_passthrough() {
+        let vars = std::collections::HashMap::new();
+        // Unrecognized {tokens} pass through unchanged (for jq, shell, etc.)
+        assert_eq!(expand_template("{unknown}", &vars), "{unknown}");
+        assert_eq!(expand_template("jq '.items[]'", &vars), "jq '.items[]'");
+    }
+
+    #[test]
+    fn test_expand_template_no_vars() {
+        let vars = std::collections::HashMap::new();
+        assert_eq!(expand_template("-p", &vars), "-p");
+        assert_eq!(
+            expand_template("extract_article_wisdom", &vars),
+            "extract_article_wisdom"
+        );
+    }
+
+    #[test]
+    fn test_expand_template_multiple_vars_in_one_arg() {
+        let mut vars = std::collections::HashMap::new();
+        vars.insert("forge_dir", "/tmp/.forge".to_string());
+        vars.insert("stage", "research".to_string());
+        assert_eq!(
+            expand_template("{forge_dir}/{stage}.md", &vars),
+            "/tmp/.forge/research.md"
+        );
+    }
+
+    #[test]
+    fn test_call_command_echo() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let env_vars = std::collections::HashMap::new();
+        let result = call_command("echo", &["hello".to_string()], "", dir.path(), &env_vars).expect("echo failed");
+        assert_eq!(result.trim(), "hello");
+    }
+
+    #[test]
+    fn test_call_command_cat_stdin() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let env_vars = std::collections::HashMap::new();
+        let result = call_command("cat", &[], "stdin content here", dir.path(), &env_vars).expect("cat failed");
+        assert_eq!(result, "stdin content here");
+    }
+
+    #[test]
+    fn test_call_command_env_vars() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let mut env_vars = std::collections::HashMap::new();
+        env_vars.insert("FORGE_STAGE".to_string(), "research".to_string());
+        let result = call_command(
+            "sh",
+            &["-c".to_string(), "echo $FORGE_STAGE".to_string()],
+            "",
+            dir.path(),
+            &env_vars,
+        )
+        .expect("sh failed");
+        assert_eq!(result.trim(), "research");
+    }
+
+    #[test]
+    fn test_call_command_failure() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let env_vars = std::collections::HashMap::new();
+        let result = call_command("false", &[], "", dir.path(), &env_vars);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_call_command_not_found() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let env_vars = std::collections::HashMap::new();
+        let result = call_command("nonexistent-command-xyz", &[], "", dir.path(), &env_vars);
+        assert!(result.is_err());
+    }
 }
