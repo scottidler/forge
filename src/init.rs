@@ -1,5 +1,6 @@
 use eyre::{Result, eyre};
 use include_dir::{Dir, File, include_dir};
+use log::debug;
 use std::fs;
 
 static EXAMPLES: Dir = include_dir!("$CARGO_MANIFEST_DIR/examples");
@@ -39,6 +40,7 @@ fn write_examples(target: &std::path::Path, force: bool) -> Result<(usize, usize
 }
 
 pub fn init(force: bool) -> Result<()> {
+    debug!("init: force={}", force);
     let config_dir = dirs::config_dir()
         .ok_or_else(|| eyre!("cannot determine config directory"))?
         .join("forge");

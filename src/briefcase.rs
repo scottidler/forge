@@ -1,5 +1,6 @@
 use colored::Colorize;
 use eyre::{Context, Result, eyre};
+use log::debug;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -13,6 +14,10 @@ const RUN_ID_FILE: &str = ".run-id";
 
 /// Deploy pipeline scaffolding into the current directory
 pub fn unpack(config: &ForgeConfig, pipeline_name: &str, input: Option<&str>, slug: Option<&str>) -> Result<()> {
+    debug!(
+        "unpack: pipeline_name={}, input={:?}, slug={:?}",
+        pipeline_name, input, slug
+    );
     let cwd = std::env::current_dir()?;
     let forge_dir = cwd.join(FORGE_DIR);
 
@@ -110,6 +115,7 @@ pub fn unpack(config: &ForgeConfig, pipeline_name: &str, input: Option<&str>, sl
 
 /// Retract .forge/ from current directory
 pub fn pack(config: &ForgeConfig, abandon: bool) -> Result<()> {
+    debug!("pack: abandon={}", abandon);
     let cwd = std::env::current_dir()?;
     let forge_dir = cwd.join(FORGE_DIR);
 

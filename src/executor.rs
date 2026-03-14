@@ -1,5 +1,6 @@
 use colored::Colorize;
 use eyre::{Context, Result, eyre};
+use log::debug;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -13,6 +14,7 @@ const FORGE_DIR: &str = ".forge";
 const RUN_ID_FILE: &str = ".run-id";
 
 pub fn run_stage(config: &ForgeConfig, stage_name: Option<&str>, input: Option<&str>) -> Result<()> {
+    debug!("run_stage: stage_name={:?}, input={:?}", stage_name, input);
     let cwd = std::env::current_dir()?;
     let forge_dir = cwd.join(FORGE_DIR);
 
@@ -67,6 +69,10 @@ pub fn run_stage(config: &ForgeConfig, stage_name: Option<&str>, input: Option<&
 }
 
 fn determine_stage_index(run: &PipelineRun, pipeline: &Pipeline, stage_name: Option<&str>) -> Result<usize> {
+    debug!(
+        "determine_stage_index: stage_name={:?}, current_stage={}",
+        stage_name, run.current_stage
+    );
     if let Some(name) = stage_name {
         // Find stage by name
         pipeline
@@ -86,7 +92,7 @@ fn determine_stage_index(run: &PipelineRun, pipeline: &Pipeline, stage_name: Opt
 }
 
 fn find_next_pending(run: &PipelineRun, from: usize) -> Option<usize> {
-    (from..run.stages.len()).find(|&i| run.stages[i].status == StageStatus::Pending)
+    (from..run.stages.len()).find(|&i| matches!(run.stages[i].status, StageStatus::Pending | StageStatus::Failed))
 }
 
 fn execute_stage(
@@ -98,6 +104,13 @@ fn execute_stage(
     forge_dir: &Path,
     cli_input: Option<&str>,
 ) -> Result<()> {
+    debug!(
+        "execute_stage: pipeline={}, stage_index={}, forge_dir={}, cli_input={:?}",
+        pipeline.name,
+        stage_index,
+        forge_dir.display(),
+        cli_input
+    );
     let (_, stage_def) = pipeline
         .stages
         .get_index(stage_index)
@@ -152,7 +165,16 @@ fn execute_stage(
         .ok_or_else(|| eyre!("cannot determine working directory"))?;
 
     // Execute command
-    let output = call_command(&stage_def.command, &expanded_args, &stage_input, working_dir, &env_vars)?;
+    let output = match call_command(&stage_def.command, &expanded_args, &stage_input, working_dir, &env_vars) {
+        Ok(output) => output,
+        Err(e) => {
+            // Mark stage as Failed so it can be retried
+            run.stages[stage_index].status = StageStatus::Failed;
+            run.touch();
+            store.update(run.clone())?;
+            return Err(e);
+        }
+    };
 
     // Write output to .forge/<NN>-<name>.md
     let output_file = forge_dir.join(format!("{:02}-{}.md", stage_num, stage_def.name));
@@ -211,6 +233,10 @@ fn compose_stage_input(
     forge_dir: &Path,
     cli_input: Option<&str>,
 ) -> Result<String> {
+    debug!(
+        "compose_stage_input: pipeline={}, stage_index={}, cli_input={:?}",
+        pipeline.name, stage_index, cli_input
+    );
     let (_, stage) = pipeline
         .stages
         .get_index(stage_index)
@@ -287,6 +313,13 @@ fn call_command(
     working_dir: &Path,
     env_vars: &std::collections::HashMap<String, String>,
 ) -> Result<String> {
+    debug!(
+        "call_command: command={}, args={:?}, working_dir={}, input_len={}",
+        command,
+        args,
+        working_dir.display(),
+        input.len()
+    );
     let mut cmd = Command::new(command);
     cmd.args(args);
     cmd.current_dir(working_dir);
@@ -392,6 +425,7 @@ mod tests {
             store: dir.path().join("store").to_string_lossy().to_string(),
             pipelines: vec![],
             global_references: vec![],
+            log_level: None,
         };
 
         let pipeline = test_pipeline();
@@ -417,6 +451,7 @@ mod tests {
             store: dir.path().join("store").to_string_lossy().to_string(),
             pipelines: vec![],
             global_references: vec![],
+            log_level: None,
         };
 
         let pipeline = test_pipeline();
@@ -439,6 +474,7 @@ mod tests {
             store: dir.path().join("store").to_string_lossy().to_string(),
             pipelines: vec![],
             global_references: vec![],
+            log_level: None,
         };
 
         let pipeline = test_pipeline();

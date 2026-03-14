@@ -1,4 +1,5 @@
 use eyre::{Context, Result, eyre};
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
@@ -18,6 +19,8 @@ pub struct ForgeConfig {
     pub pipelines: Vec<String>,
     #[serde(default)]
     pub global_references: Vec<String>,
+    #[serde(default)]
+    pub log_level: Option<String>,
 }
 
 impl ForgeConfig {
@@ -48,6 +51,7 @@ impl ForgeConfig {
 
     /// Resolve a pipeline definition path by scanning pipeline directories
     pub fn pipeline_path(&self, name: &str) -> Result<PathBuf> {
+        debug!("pipeline_path: name={}", name);
         let filename = format!("{}.yml", name);
         for dir in &self.pipelines {
             let dir_path = self.resolve_pipeline_dir(dir)?;
@@ -61,6 +65,7 @@ impl ForgeConfig {
 
     /// List all discovered pipelines as (name, path) pairs
     pub fn list_pipelines(&self) -> Result<Vec<(String, PathBuf)>> {
+        debug!("list_pipelines: dirs={:?}", self.pipelines);
         let mut seen = HashSet::new();
         let mut result = Vec::new();
         for dir in &self.pipelines {
@@ -92,6 +97,7 @@ impl ForgeConfig {
 
     /// Load configuration with fallback chain
     pub fn load(config_path: Option<&PathBuf>) -> Result<Self> {
+        debug!("load: config_path={:?}", config_path);
         if let Some(path) = config_path {
             return Self::load_from_file(path).context(format!("failed to load config from {}", path.display()));
         }
@@ -134,6 +140,7 @@ impl ForgeConfig {
     }
 
     fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        debug!("load_from_file: path={}", path.as_ref().display());
         let content = fs::read_to_string(&path).context("failed to read config file")?;
         let wrapper: ForgeConfigWrapper = serde_yaml::from_str(&content).context("failed to parse config file")?;
         log::info!("loaded config from: {}", path.as_ref().display());
@@ -192,8 +199,8 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["pipelines/".to_string()],
-
             global_references: vec![],
+            log_level: None,
         };
         let path = config.pipeline_path("techspec").expect("failed to resolve");
         assert_eq!(path, pipelines_dir.join("techspec.yml"));
@@ -210,8 +217,8 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["pipelines/".to_string()],
-
             global_references: vec![],
+            log_level: None,
         };
         assert!(config.pipeline_path("nonexistent").is_err());
     }
@@ -232,8 +239,8 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["local/".to_string(), "shared/".to_string()],
-
             global_references: vec![],
+            log_level: None,
         };
         assert!(config.pipeline_path("techspec").is_ok());
         assert!(config.pipeline_path("research").is_ok());
@@ -255,8 +262,8 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["local/".to_string(), "shared/".to_string()],
-
             global_references: vec![],
+            log_level: None,
         };
         let path = config.pipeline_path("techspec").expect("failed to resolve");
         assert_eq!(path, dir1.join("techspec.yml"));
@@ -276,8 +283,8 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["pipelines/".to_string()],
-
             global_references: vec![],
+            log_level: None,
         };
         let list = config.list_pipelines().expect("failed to list");
         assert_eq!(list.len(), 2);
@@ -293,8 +300,8 @@ mod tests {
             home: "/tmp/nonexistent".to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["pipelines/".to_string()],
-
             global_references: vec![],
+            log_level: None,
         };
         let list = config.list_pipelines().expect("failed to list");
         assert!(list.is_empty());

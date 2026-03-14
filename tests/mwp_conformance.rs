@@ -81,6 +81,7 @@ stages:
         store: dir.join("store").to_string_lossy().to_string(),
         pipelines: vec!["pipelines/".to_string()],
         global_references: vec!["references/voice.md".to_string()],
+        log_level: None,
     }
 }
 
@@ -1034,6 +1035,7 @@ fn pipeline_discovery_from_multiple_dirs() {
         store: dir.path().join("store").to_string_lossy().to_string(),
         pipelines: vec!["local/".to_string(), "shared/".to_string()],
         global_references: vec![],
+        log_level: None,
     };
 
     let pipelines = config.list_pipelines().expect("list");
@@ -1061,6 +1063,7 @@ fn pipeline_shadowing_first_dir_wins() {
         store: dir.path().join("store").to_string_lossy().to_string(),
         pipelines: vec!["local/".to_string(), "shared/".to_string()],
         global_references: vec![],
+        log_level: None,
     };
 
     let path = config.pipeline_path("test").expect("resolve");

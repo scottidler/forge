@@ -21,11 +21,15 @@ pub struct Cli {
     #[arg(short, long, global = true, help = "Enable verbose output")]
     pub verbose: bool,
 
+    /// Log level (error, warn, info, debug, trace). Overrides FORGE_LOG_LEVEL env var and config file.
+    #[arg(short, long, global = true, help = "Log level (error, warn, info, debug, trace)")]
+    pub log_level: Option<String>,
+
     #[command(subcommand)]
     pub command: Command,
 }
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum Command {
     /// Deploy pipeline scaffolding into current directory
     Unpack {
@@ -80,7 +84,7 @@ pub enum Command {
         pipeline: Option<String>,
 
         /// Limit number of results
-        #[arg(short, long, default_value = "10")]
+        #[arg(short = 'L', long, default_value = "10")]
         limit: usize,
     },
 

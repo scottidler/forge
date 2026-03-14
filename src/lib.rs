@@ -11,12 +11,15 @@ use std::path::PathBuf;
 
 use colored::Colorize;
 use eyre::{Result, eyre};
+use log::debug;
+use terminal_size::{Width, terminal_size};
 
 use crate::cli::Command;
 use crate::config::ForgeConfig;
 use crate::pipeline::Pipeline;
 
 pub fn run_command(command: &Command, config: &ForgeConfig) -> Result<()> {
+    debug!("run_command: command={:?}", command);
     match command {
         Command::Describe { pipeline, stage } => cmd_describe(config, pipeline, *stage),
         Command::Refs { pipeline, stage } => cmd_refs(config, pipeline, *stage),
@@ -33,6 +36,10 @@ pub fn run_command(command: &Command, config: &ForgeConfig) -> Result<()> {
 }
 
 fn cmd_describe(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<usize>) -> Result<()> {
+    debug!(
+        "cmd_describe: pipeline_name={}, stage_filter={:?}",
+        pipeline_name, stage_filter
+    );
     let path = config.pipeline_path(pipeline_name)?;
     let pipeline = Pipeline::load(&path)?;
 
@@ -77,6 +84,10 @@ fn cmd_describe(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<
 }
 
 fn cmd_refs(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<usize>) -> Result<()> {
+    debug!(
+        "cmd_refs: pipeline_name={}, stage_filter={:?}",
+        pipeline_name, stage_filter
+    );
     let path = config.pipeline_path(pipeline_name)?;
     let pipeline = Pipeline::load(&path)?;
 
@@ -113,6 +124,7 @@ fn cmd_refs(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<usiz
 }
 
 fn cmd_ls(config: &ForgeConfig, pipelines: &[String], all: bool) -> Result<()> {
+    debug!("cmd_ls: pipelines={:?}, all={}", pipelines, all);
     let available = config.list_pipelines()?;
     let active_runs = load_active_runs(config)?;
 
@@ -150,11 +162,24 @@ fn cmd_ls_compact(
         entries.push((name.clone(), description, count));
     }
 
+    let term_width = terminal_size().map(|(Width(w), _)| w as usize).unwrap_or(80);
+    // prefix: "  {padded_name} - "
+    let prefix_len = 2 + max_name_len + 3;
+
     println!("{}:", "Pipelines".bold());
     for (name, description, count) in &entries {
         let count_suffix = if *count > 0 { format!(" ({})", count) } else { String::new() };
         let padded_name = format!("{:width$}", name, width = max_name_len);
-        println!("  {} - {}{}", padded_name.cyan(), description, count_suffix.bold());
+        let full_desc = format!("{}{}", description, count_suffix);
+        let desc_width = term_width.saturating_sub(prefix_len);
+        let wrapped = wrap_text(&full_desc, desc_width);
+        for (i, line) in wrapped.iter().enumerate() {
+            if i == 0 {
+                println!("  {} - {}", padded_name.cyan(), line);
+            } else {
+                println!("{:indent$}{}", "", line, indent = prefix_len);
+            }
+        }
     }
     let _ = config; // suppress unused warning
     Ok(())
@@ -178,6 +203,7 @@ fn cmd_ls_detailed(
             Ok(pipeline) => {
                 let stage_count = pipeline.stages.len();
                 let stage_chain = format_stage_chain(&pipeline);
+                let output_path = format!("{}/{}", pipeline.output.destination, pipeline.output.filename);
                 println!(
                     "{} ({} {}) - {}",
                     name.bold().cyan(),
@@ -185,11 +211,9 @@ fn cmd_ls_detailed(
                     if stage_count == 1 { "stage" } else { "stages" },
                     pipeline.description
                 );
-                println!("  output: {}/{}", pipeline.output.destination, pipeline.output.filename);
-                println!("  stages: {}", stage_chain);
+                println!("  {} => {}", stage_chain, output_path.dimmed());
 
                 if let Some(runs) = active_runs.get(name) {
-                    println!("  runs:");
                     for run in runs {
                         let stage_info = if run.current_stage < run.stages.len() {
                             format!(
@@ -202,15 +226,13 @@ fn cmd_ls_detailed(
                             "complete".to_string()
                         };
                         println!(
-                            "    {}  [{}]  {}   {}",
+                            "  {}  [{}]  {}   {}",
                             &run.id[..8].dimmed(),
                             run.status.to_string().yellow(),
                             stage_info,
                             run.working_dir.dimmed()
                         );
                     }
-                } else {
-                    println!("  {}", "(no active runs)".dimmed());
                 }
             }
             Err(e) => {
@@ -224,6 +246,7 @@ fn cmd_ls_detailed(
 
 /// Load all active (Unpacked + InProgress) runs, grouped by pipeline name
 fn load_active_runs(config: &ForgeConfig) -> Result<HashMap<String, Vec<store::PipelineRun>>> {
+    debug!("load_active_runs");
     let store_dir = config.store_dir()?;
     if !store_dir.exists() {
         return Ok(HashMap::new());
@@ -240,9 +263,22 @@ fn load_active_runs(config: &ForgeConfig) -> Result<HashMap<String, Vec<store::P
         op: taskstore::FilterOp::Eq,
         value: taskstore::IndexValue::String("InProgress".to_string()),
     }])?;
+    debug!(
+        "load_active_runs: found {} unpacked, {} in_progress",
+        runs.len(),
+        in_progress.len()
+    );
     runs.extend(in_progress);
 
     let mut grouped: HashMap<String, Vec<store::PipelineRun>> = HashMap::new();
+    for run in &runs {
+        debug!(
+            "load_active_runs: run id={}, pipeline={}, status={:?}",
+            &run.id[..8],
+            run.pipeline,
+            run.status
+        );
+    }
     for run in runs {
         grouped.entry(run.pipeline.clone()).or_default().push(run);
     }
@@ -277,6 +313,33 @@ fn matches_pipeline(name: &str, pattern: &str) -> bool {
     name.to_lowercase().contains(&pattern.to_lowercase())
 }
 
+/// Wrap text to a given width, breaking on word boundaries
+fn wrap_text(text: &str, width: usize) -> Vec<String> {
+    if width == 0 || text.len() <= width {
+        return vec![text.to_string()];
+    }
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    for word in text.split_whitespace() {
+        if current.is_empty() {
+            current = word.to_string();
+        } else if current.len() + 1 + word.len() <= width {
+            current.push(' ');
+            current.push_str(word);
+        } else {
+            lines.push(current);
+            current = word.to_string();
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    if lines.is_empty() {
+        lines.push(String::new());
+    }
+    lines
+}
+
 /// Format stage chain like: research -> outline [review] -> draft [review]
 fn format_stage_chain(pipeline: &Pipeline) -> String {
     pipeline
@@ -294,6 +357,7 @@ fn format_stage_chain(pipeline: &Pipeline) -> String {
 }
 
 fn cmd_show(config: &ForgeConfig, run_id: Option<&str>) -> Result<()> {
+    debug!("cmd_show: run_id={:?}", run_id);
     let store_dir = config.store_dir()?;
     let store = store::open_store(&store_dir)?;
 
@@ -337,6 +401,7 @@ fn cmd_show(config: &ForgeConfig, run_id: Option<&str>) -> Result<()> {
             store::StageStatus::Completed => stage.status.to_string().green().to_string(),
             store::StageStatus::Review => stage.status.to_string().yellow().to_string(),
             store::StageStatus::InProgress => stage.status.to_string().cyan().to_string(),
+            store::StageStatus::Failed => stage.status.to_string().red().to_string(),
             _ => stage.status.to_string().dimmed().to_string(),
         };
         println!("{} {}. {} [{}]", marker, i + 1, stage.name, status_color);
@@ -349,6 +414,7 @@ fn cmd_show(config: &ForgeConfig, run_id: Option<&str>) -> Result<()> {
 }
 
 fn cmd_history(config: &ForgeConfig, pipeline_filter: Option<&str>, limit: usize) -> Result<()> {
+    debug!("cmd_history: pipeline_filter={:?}, limit={}", pipeline_filter, limit);
     let store_dir = config.store_dir()?;
     if !store_dir.exists() {
         println!("No pipeline history.");
@@ -395,9 +461,9 @@ mod tests {
     use crate::store::{PipelineRun, RunStatus};
     use tempfile::TempDir;
 
-    static PIPELINE_YAML: &str = "name: techspec\ndescription: Research, outline, draft, and review a technical specification\noutput:\n  destination: docs/design\n  filename: \"{date}-{slug}.md\"\nstages:\n  research:\n    description: Gather context\n    command: fabric\n    review: false\n  outline:\n    description: Create outline\n    command: fabric\n    review: true\n  draft:\n    description: Write full draft\n    command: fabric\n    review: true\n";
+    static PIPELINE_YAML: &str = "name: techspec\ndescription: Research, outline, draft, and review a technical specification\noutput:\n  destination: docs/design\n  filename: \"{date}-{slug}.md\"\nstages:\n  research:\n    description: Gather context\n    command: fabric\n    args: [\"-p\", \"extract_article_wisdom\"]\n    review: false\n  outline:\n    description: Create outline\n    command: fabric\n    args: [\"-p\", \"create_outline\"]\n    review: true\n  draft:\n    description: Write full draft\n    command: fabric\n    args: [\"-p\", \"write_document\"]\n    review: true\n";
 
-    static RESEARCH_YAML: &str = "name: research\ndescription: Deep research pipeline\noutput:\n  destination: research\n  filename: \"{date}-{slug}.md\"\nstages:\n  gather:\n    description: Gather sources\n    command: fabric\n  analyze:\n    description: Analyze sources\n    command: fabric\n";
+    static RESEARCH_YAML: &str = "name: research\ndescription: Deep research pipeline\noutput:\n  destination: research\n  filename: \"{date}-{slug}.md\"\nstages:\n  gather:\n    description: Gather sources\n    command: fabric\n    args: [\"-p\", \"extract_article_wisdom\"]\n  analyze:\n    description: Analyze sources\n    command: fabric\n    args: [\"-p\", \"analyze_paper\"]\n";
 
     fn test_config(dir: &std::path::Path) -> ForgeConfig {
         ForgeConfig {
@@ -406,6 +472,7 @@ mod tests {
             store: dir.join("store").to_string_lossy().to_string(),
             pipelines: vec![],
             global_references: vec![],
+            log_level: None,
         }
     }
 

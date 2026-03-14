@@ -1,4 +1,5 @@
 use eyre::Result;
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
@@ -56,6 +57,7 @@ pub enum StageStatus {
     Review,
     Completed,
     Skipped,
+    Failed,
 }
 
 impl fmt::Display for StageStatus {
@@ -66,6 +68,7 @@ impl fmt::Display for StageStatus {
             StageStatus::Review => write!(f, "Review"),
             StageStatus::Completed => write!(f, "Completed"),
             StageStatus::Skipped => write!(f, "Skipped"),
+            StageStatus::Failed => write!(f, "Failed"),
         }
     }
 }
@@ -135,7 +138,9 @@ impl PipelineRun {
 
 /// Open the forge TaskStore at the configured store directory
 pub fn open_store(store_dir: &std::path::Path) -> Result<taskstore::Store> {
-    let store = taskstore::Store::open(store_dir)?;
+    debug!("open_store: store_dir={}", store_dir.display());
+    let mut store = taskstore::Store::open(store_dir)?;
+    store.rebuild_indexes::<PipelineRun>()?;
     Ok(store)
 }
 
@@ -206,5 +211,6 @@ mod tests {
         assert_eq!(StageStatus::Pending.to_string(), "Pending");
         assert_eq!(StageStatus::Review.to_string(), "Review");
         assert_eq!(StageStatus::Completed.to_string(), "Completed");
+        assert_eq!(StageStatus::Failed.to_string(), "Failed");
     }
 }

@@ -1,5 +1,6 @@
 use eyre::{Context, Result};
 use indexmap::IndexMap;
+use log::debug;
 use serde::de::{Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -68,6 +69,7 @@ where
 
 impl Pipeline {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+        debug!("Pipeline::load: path={}", path.as_ref().display());
         let content =
             fs::read_to_string(&path).context(format!("failed to read pipeline file: {}", path.as_ref().display()))?;
         let pipeline: Self =
