@@ -1,6 +1,6 @@
 # ============================================================================
 # research.yml -- A 3-stage pipeline mapping directly to MWP's canonical
-# example (01_research → 02_script → 03_production)
+# example (01_research -> 02_script -> 03_production)
 # ============================================================================
 # This pipeline mirrors the paper's script-to-animation workspace (Section
 # 4.2) in structure: gather (research), analyze (script), synthesize
@@ -21,7 +21,7 @@ output:
 # Layer 3 (pipeline scope): no pipeline-level references.
 # voice.md is already provided by global_references in forge.yml, so
 # listing it here would be redundant -- all_references_for_stage() merges
-# global → pipeline → stage refs and deduplicates.
+# global -> pipeline -> stage refs and deduplicates.
 # For now, the pipeline inherits global refs only.
 
 stages:
@@ -31,7 +31,10 @@ stages:
   # No stage-specific Layer 3 refs -- just the global voice.md
   gather:
     description: "Gather raw information, links, quotes, and data points about the topic"
-    fabric-pattern: extract_article_wisdom
+    command: fabric
+    args:
+      - "-p"
+      - "extract_article_wisdom"
     review: false
 
   # Stage 2: Analyze -- the "transformation" pass
@@ -41,7 +44,10 @@ stages:
   # before the final synthesis pass
   analyze:
     description: "Analyze gathered information, identify patterns, compare alternatives"
-    fabric-pattern: analyze_paper
+    command: fabric
+    args:
+      - "-p"
+      - "analyze_paper"
     review: true
 
   # Stage 3: Synthesize -- the "production" pass
@@ -49,5 +55,8 @@ stages:
   # Layer 4 output: .forge/03-synthesize.md (the final product)
   synthesize:
     description: "Synthesize analysis into a structured document with recommendations"
-    fabric-pattern: write_document
+    command: fabric
+    args:
+      - "-p"
+      - "write_document"
     review: true

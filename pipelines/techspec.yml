@@ -32,11 +32,11 @@ output:
 # Pipeline-specific reference material shared across ALL stages.
 # voice.md is already provided by global_references in forge.yml, so only
 # the techspec template is listed here -- all_references_for_stage() merges
-# global → pipeline → stage refs and deduplicates.
+# global -> pipeline -> stage refs and deduplicates.
 #
 # Combined with global_references from forge.yml and each stage's own
 # references, this creates MWP's three-tier Layer 3:
-#   global (forge.yml) → pipeline (here) → stage (below)
+#   global (forge.yml) -> pipeline (here) -> stage (below)
 # --------------------------------------------------------------------------
 references:
   - references/templates/techspec.md
@@ -51,10 +51,10 @@ references:
 #   ## Outputs  -- what to produce
 #
 # In forge, each stage entry below encodes the same contract:
-#   - description  → the "Process" section (what to do)
-#   - fabric-pattern → the executor (which fabric pattern runs this)
-#   - references   → the "Inputs" section (Layer 3 portion)
-#   - review       → whether there's a human review gate after this stage
+#   - description  -> the "Process" section (what to do)
+#   - command/args -> the executor (what program runs this stage)
+#   - references   -> the "Inputs" section (Layer 3 portion)
+#   - review       -> whether there's a human review gate after this stage
 #
 # The "Inputs" for Layer 4 (working artifacts) are implicit:
 #   - Stage 0 reads .forge/input.md (or --input CLI arg)
@@ -71,7 +71,10 @@ stages:
   # Layer 4 output: .forge/01-research.md
   research:
     description: "Gather context, explore prior art, identify constraints and dependencies"
-    fabric-pattern: extract_article_wisdom
+    command: fabric
+    args:
+      - "-p"
+      - "extract_article_wisdom"
     # Stage-specific Layer 3: research quality rubric
     references:
       - references/rubrics/research-rubric.md
@@ -86,7 +89,10 @@ stages:
   # Layer 4 output: .forge/02-outline.md
   outline:
     description: "Create structural outline with section headers and key points"
-    fabric-pattern: create_outline
+    command: fabric
+    args:
+      - "-p"
+      - "create_outline"
     # Stage-specific Layer 3: the techspec template structure to follow
     references:
       - references/templates/techspec.md
@@ -102,7 +108,10 @@ stages:
   # Layer 4 output: .forge/03-draft.md
   draft:
     description: "Write full draft following outline and voice"
-    fabric-pattern: write_document
+    command: fabric
+    args:
+      - "-p"
+      - "write_document"
     # voice.md comes from global refs -- no stage-specific Layer 3 needed here
     # Review gate ON -- human reviews the full draft before final review pass
     review: true
@@ -113,7 +122,10 @@ stages:
   # Layer 4 output: .forge/04-review.md (the final product)
   review:
     description: "Self-review against rubric, produce final version"
-    fabric-pattern: review_against_rubric
+    command: fabric
+    args:
+      - "-p"
+      - "review_against_rubric"
     # Stage-specific Layer 3: the quality rubric to check against.
     # MWP paper (p.5, "Configure the factory, not the product"):
     # The rubric is factory material -- set up once, every spec gets

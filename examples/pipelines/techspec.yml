@@ -14,24 +14,36 @@ references:
 stages:
   research:
     description: "Gather context, explore prior art, identify constraints and dependencies"
-    fabric-pattern: extract_article_wisdom
+    command: fabric
+    args:
+      - "-p"
+      - "extract_article_wisdom"
     review: false
 
   outline:
     description: "Create structural outline with section headers and key points"
-    fabric-pattern: create_outline
+    command: fabric
+    args:
+      - "-p"
+      - "create_outline"
     references:
       - references/templates/techspec.md
     review: true
 
   draft:
     description: "Write full draft following outline and voice"
-    fabric-pattern: write_document
+    command: fabric
+    args:
+      - "-p"
+      - "write_document"
     review: true
 
   review:
     description: "Self-review against rubric, produce final version"
-    fabric-pattern: review_against_rubric
+    command: fabric
+    args:
+      - "-p"
+      - "review_against_rubric"
     references:
       - references/rubrics/techspec-rubric.md
     review: true

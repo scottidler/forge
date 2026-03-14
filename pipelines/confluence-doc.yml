@@ -1,15 +1,15 @@
 # ============================================================================
 # confluence-doc.yml -- Demonstrates MWP's "configure the factory" principle
 # ============================================================================
-# This pipeline and techspec.yml share the same 3-stage shape (research →
-# outline → draft) but produce different outputs because they load different
+# This pipeline and techspec.yml share the same 3-stage shape (research ->
+# outline -> draft) but produce different outputs because they load different
 # Layer 3 reference material. The template determines the product.
 #
 # MWP paper (p.5): "A workspace is set up once with the user's preferences,
 # brand, style, and structural decisions. After that, each run of the
 # pipeline produces a new deliverable using the same configuration."
 #
-# Same factory, different templates → different products.
+# Same factory, different templates -> different products.
 # ============================================================================
 
 # Layer 1: pipeline identity
@@ -22,7 +22,7 @@ output:
 
 # Layer 3 (pipeline scope): Confluence template applies to all stages.
 # voice.md is already provided by global_references in forge.yml, so it's
-# not listed here -- all_references_for_stage() merges global → pipeline →
+# not listed here -- all_references_for_stage() merges global -> pipeline ->
 # stage refs and deduplicates.
 #
 # Compare with techspec.yml which loads techspec.md instead -- that's the
@@ -31,20 +31,26 @@ references:
   - references/templates/confluence-doc.md
 
 stages:
-  # Stage 1: identical to techspec research -- same fabric pattern, same job.
+  # Stage 1: identical to techspec research -- same command, same job.
   # The stage doesn't know it's making a Confluence doc; it just gathers
   # context. MWP principle: "one stage, one job."
   research:
     description: "Gather context and background for the document topic"
-    fabric-pattern: extract_article_wisdom
+    command: fabric
+    args:
+      - "-p"
+      - "extract_article_wisdom"
     review: false
 
   # Stage 2: outline -- this is where the Confluence template (Layer 3)
   # shapes the output differently than techspec's outline stage.
-  # Same fabric pattern (create_outline), different reference material.
+  # Same command, different reference material.
   outline:
     description: "Create document outline following Confluence template structure"
-    fabric-pattern: create_outline
+    command: fabric
+    args:
+      - "-p"
+      - "create_outline"
     references:
       - references/templates/confluence-doc.md
     review: true
@@ -52,5 +58,8 @@ stages:
   # Stage 3: draft -- voice.md (from global refs) ensures consistent tone
   draft:
     description: "Write full document following outline, voice, and Confluence formatting"
-    fabric-pattern: write_document
+    command: fabric
+    args:
+      - "-p"
+      - "write_document"
     review: true

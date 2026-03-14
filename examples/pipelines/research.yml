@@ -10,15 +10,24 @@ output:
 stages:
   gather:
     description: "Gather raw information, links, quotes, and data points about the topic"
-    fabric-pattern: extract_article_wisdom
+    command: fabric
+    args:
+      - "-p"
+      - "extract_article_wisdom"
     review: false
 
   analyze:
     description: "Analyze gathered information, identify patterns, compare alternatives"
-    fabric-pattern: analyze_paper
+    command: fabric
+    args:
+      - "-p"
+      - "analyze_paper"
     review: true
 
   synthesize:
     description: "Synthesize analysis into a structured document with recommendations"
-    fabric-pattern: write_document
+    command: fabric
+    args:
+      - "-p"
+      - "write_document"
     review: true

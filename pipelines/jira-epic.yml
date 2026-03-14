@@ -2,8 +2,8 @@
 # jira-epic.yml -- Same factory shape, different product
 # ============================================================================
 # Compare this with techspec.yml and confluence-doc.yml: all three share
-# the research → structure → write pattern. The difference is what Layer 3
-# references each loads and what fabric pattern transforms the content.
+# the research -> structure -> write pattern. The difference is what Layer 3
+# references each loads and what command transforms the content.
 #
 # This demonstrates the MWP "configure the factory" principle at work:
 # the pipeline shape is reusable, the references make each product unique.
@@ -20,7 +20,7 @@ output:
 # Layer 3 (pipeline scope): no pipeline-level references.
 # voice.md is already provided by global_references in forge.yml, so
 # listing it here would be redundant -- all_references_for_stage() merges
-# global → pipeline → stage refs and deduplicates.
+# global -> pipeline -> stage refs and deduplicates.
 #
 # This is a spot where adding a references/templates/jira-epic.md would
 # strengthen the pipeline (the "factory" is under-configured).
@@ -32,7 +32,10 @@ stages:
   # MWP principle: "A stage that fetches data does not also filter it."
   research:
     description: "Gather requirements, constraints, and technical context"
-    fabric-pattern: extract_article_wisdom
+    command: fabric
+    args:
+      - "-p"
+      - "extract_article_wisdom"
     review: false
 
   # Stage 2: Breakdown -- structure into stories
@@ -42,7 +45,10 @@ stages:
   # Layer 2 contract -- "what do I do?"
   breakdown:
     description: "Break work into stories with acceptance criteria"
-    fabric-pattern: create_outline
+    command: fabric
+    args:
+      - "-p"
+      - "create_outline"
     review: true
 
   # Stage 3: Draft -- write the epic and stories
@@ -50,5 +56,8 @@ stages:
   # Layer 4 output: .forge/03-draft.md (final epic description)
   draft:
     description: "Write epic description and story details"
-    fabric-pattern: write_document
+    command: fabric
+    args:
+      - "-p"
+      - "write_document"
     review: true

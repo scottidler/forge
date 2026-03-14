@@ -5,16 +5,15 @@
 # it's in, what the folder structure contains, and where to find things.
 #
 # This file IS forge's Layer 0. It answers:
-#   - What is this system? (forge, version 1)
+#   - What is this system? (forge, version 2)
 #   - Where does factory material live? (home)
 #   - Where does run state get stored? (store)
 #   - What pipelines are available? (the routing table)
-#   - What tools execute the work? (fabric config)
 #   - What reference material applies everywhere? (global_references)
 # ============================================================================
 
 forge:
-  version: "1"
+  version: "2"
 
   # The "briefcase" -- where all factory material lives:
   # pipeline definitions, reference material, templates, rubrics.
@@ -33,7 +32,7 @@ forge:
   # In MWP, Layer 1 is the workspace-level CONTEXT.md that says "given what
   # the user wants to do, which stage folder handles it." In forge, these
   # pipeline directories are scanned for .yml files. Pipeline names are
-  # derived from filename stems (techspec.yml → techspec). First directory
+  # derived from filename stems (techspec.yml -> techspec). First directory
   # wins on name collision, following $PATH semantics.
   #
   # When you run `forge unpack techspec`, forge scans these directories
@@ -41,13 +40,6 @@ forge:
   # ========================================================================
   pipelines:
     - pipelines/
-
-  # Stage executor configuration.
-  # MWP uses Claude Code reading CONTEXT.md files; forge pipes structured
-  # context through fabric patterns instead.
-  fabric:
-    binary: fabric
-    model: ""
 
   # ========================================================================
   # MWP Layer 3 (global scope): "What rules apply everywhere?"
@@ -61,7 +53,7 @@ forge:
   # receives it. This is the equivalent of MWP's shared/ or _config/ folder
   # at the workspace root.
   #
-  # Hierarchy: global_references → pipeline.references → stage.references
+  # Hierarchy: global_references -> pipeline.references -> stage.references
   # (merged in pipeline.rs:all_references_for_stage)
   # ========================================================================
   global_references:
