@@ -325,6 +325,7 @@ dependencies = [
  "dirs",
  "env_logger",
  "eyre",
+ "indexmap",
  "log",
  "serde",
  "serde_yaml",
