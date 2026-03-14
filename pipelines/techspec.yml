@@ -1,39 +1,125 @@
+# ============================================================================
+# techspec.yml — Pipeline definition (MWP Layers 1 + 2 combined)
+# ============================================================================
+# In MWP, Layer 1 (CONTEXT.md) tells the agent what the workflow does and
+# which stages exist. Layer 2 (stage CONTEXT.md) tells the agent what each
+# stage does, what inputs it reads, and what outputs it produces.
+#
+# This file combines both: the top-level fields are Layer 1 (pipeline
+# identity and routing), and each stage entry is Layer 2 (the stage
+# contract).
+# ============================================================================
+
+# --------------------------------------------------------------------------
+# MWP Layer 1: "Where do I go?" — pipeline identity and routing
+# --------------------------------------------------------------------------
+# In MWP, the workspace CONTEXT.md says: "This workspace produces technical
+# specifications. It has four stages: research, outline, draft, review."
+# These top-level fields carry that same information.
+# --------------------------------------------------------------------------
 name: techspec
 description: "Research, outline, draft, and review a technical specification"
 
+# Where the final product lands. MWP equivalent: the last stage's output/
+# folder, except forge writes it to a configured destination on `forge pack`.
 output:
   destination: "docs/design/"
   filename: "{date}-{slug}.md"
 
+# --------------------------------------------------------------------------
+# MWP Layer 3 (pipeline scope): "What rules apply to this pipeline?"
+# --------------------------------------------------------------------------
+# Pipeline-specific reference material shared across ALL stages.
+# voice.md is already provided by global_references in forge.yml, so only
+# the techspec template is listed here — all_references_for_stage() merges
+# global → pipeline → stage refs and deduplicates.
+#
+# Combined with global_references from forge.yml and each stage's own
+# references, this creates MWP's three-tier Layer 3:
+#   global (forge.yml) → pipeline (here) → stage (below)
+# --------------------------------------------------------------------------
 references:
-  - references/voice.md
   - references/templates/techspec.md
 
+# ============================================================================
+# Stages — each entry is an MWP Layer 2: "What do I do?"
+# ============================================================================
+# In MWP, each numbered folder (01_research/, 02_script/, etc.) contains a
+# CONTEXT.md with three sections:
+#   ## Inputs   — what files to read (Layer 3 refs + Layer 4 artifacts)
+#   ## Process  — what to do with them
+#   ## Outputs  — what to produce
+#
+# In forge, each stage entry below encodes the same contract:
+#   - description  → the "Process" section (what to do)
+#   - pattern      → the executor (which fabric pattern runs this)
+#   - references   → the "Inputs" section (Layer 3 portion)
+#   - review       → whether there's a human review gate after this stage
+#
+# The "Inputs" for Layer 4 (working artifacts) are implicit:
+#   - Stage 0 reads .forge/input.md (or --input CLI arg)
+#   - Stage N reads .forge/{N-1}-{prev_name}.md (previous stage output)
+# This is handled by compose_stage_input() in executor.rs.
+#
+# The "Outputs" are also implicit:
+#   - Each stage writes to .forge/{N}-{name}.md
+# ============================================================================
 stages:
-  - name: research
+  # Stage 1: Research
+  # MWP equivalent: 01_research/ folder
+  # Layer 4 input: initial input (--input flag or .forge/input.md)
+  # Layer 4 output: .forge/01-research.md
+  research:
     description: "Gather context, explore prior art, identify constraints and dependencies"
     pattern: extract_article_wisdom
+    # Stage-specific Layer 3: research quality rubric
     references:
       - references/rubrics/research-rubric.md
+    # No review gate — research output flows directly to next stage.
+    # MWP paper (p.13, Fig.5): practitioners edit research output 92% of
+    # the time anyway, but forge lets you skip the gate for speed.
     review: false
 
-  - name: outline
+  # Stage 2: Outline
+  # MWP equivalent: 02_outline/ folder
+  # Layer 4 input: .forge/01-research.md (previous stage output)
+  # Layer 4 output: .forge/02-outline.md
+  outline:
     description: "Create structural outline with section headers and key points"
     pattern: create_outline
+    # Stage-specific Layer 3: the techspec template structure to follow
     references:
       - references/templates/techspec.md
+    # Review gate ON — the paper (p.11): "The structural plan determines
+    # the entire arc. Getting it wrong means everything downstream is wrong."
+    # This is where human judgment matters most. User edits
+    # .forge/02-outline.md then runs `forge run` to approve.
     review: true
 
-  - name: draft
+  # Stage 3: Draft
+  # MWP equivalent: 03_draft/ folder
+  # Layer 4 input: .forge/02-outline.md (reviewed/edited by human)
+  # Layer 4 output: .forge/03-draft.md
+  draft:
     description: "Write full draft following outline and voice"
     pattern: write_document
-    references:
-      - references/voice.md
+    # voice.md comes from global refs — no stage-specific Layer 3 needed here
+    # Review gate ON — human reviews the full draft before final review pass
     review: true
 
-  - name: review
+  # Stage 4: Review
+  # MWP equivalent: 04_review/ folder
+  # Layer 4 input: .forge/03-draft.md (reviewed/edited by human)
+  # Layer 4 output: .forge/04-review.md (the final product)
+  review:
     description: "Self-review against rubric, produce final version"
     pattern: review_against_rubric
+    # Stage-specific Layer 3: the quality rubric to check against.
+    # MWP paper (p.5, "Configure the factory, not the product"):
+    # The rubric is factory material — set up once, every spec gets
+    # reviewed against the same standard.
     references:
       - references/rubrics/techspec-rubric.md
+    # Review gate ON — human approves final version before `forge pack`
+    # writes it to docs/design/
     review: true

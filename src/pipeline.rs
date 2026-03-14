@@ -1,7 +1,12 @@
 use eyre::{Context, Result};
+use indexmap::IndexMap;
+use serde::de::{Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::fs;
 use std::path::Path;
+
+pub type StageMap = IndexMap<String, Stage>;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Pipeline {
@@ -10,7 +15,8 @@ pub struct Pipeline {
     pub output: OutputConfig,
     #[serde(default)]
     pub references: Vec<String>,
-    pub stages: Vec<Stage>,
+    #[serde(deserialize_with = "deserialize_stage_map")]
+    pub stages: StageMap,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -21,6 +27,7 @@ pub struct OutputConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Stage {
+    #[serde(skip_deserializing)]
     pub name: String,
     pub description: String,
     pub pattern: String,
@@ -28,6 +35,33 @@ pub struct Stage {
     pub references: Vec<String>,
     #[serde(default)]
     pub review: bool,
+}
+
+pub fn deserialize_stage_map<'de, D>(deserializer: D) -> Result<StageMap, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct StageMapVisitor;
+    impl<'de> Visitor<'de> for StageMapVisitor {
+        type Value = StageMap;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("a map of stage names to stage definitions")
+        }
+
+        fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+        where
+            M: MapAccess<'de>,
+        {
+            let mut stages = StageMap::new();
+            while let Some((name, mut stage)) = map.next_entry::<String, Stage>()? {
+                stage.name = name.clone();
+                stages.insert(name, stage);
+            }
+            Ok(stages)
+        }
+    }
+    deserializer.deserialize_map(StageMapVisitor)
 }
 
 impl Pipeline {
@@ -47,14 +81,14 @@ impl Pipeline {
         if self.stages.is_empty() {
             return Err(eyre::eyre!("pipeline '{}' has no stages", self.name));
         }
-        for (i, stage) in self.stages.iter().enumerate() {
-            if stage.name.is_empty() {
-                return Err(eyre::eyre!("stage {} has no name in pipeline '{}'", i, self.name));
+        for (name, stage) in &self.stages {
+            if name.is_empty() {
+                return Err(eyre::eyre!("stage has empty name in pipeline '{}'", self.name));
             }
             if stage.pattern.is_empty() {
                 return Err(eyre::eyre!(
                     "stage '{}' has no pattern in pipeline '{}'",
-                    stage.name,
+                    name,
                     self.name
                 ));
             }
@@ -66,7 +100,7 @@ impl Pipeline {
     pub fn all_references_for_stage(&self, stage_index: usize, global_refs: &[String]) -> Vec<String> {
         let mut refs: Vec<String> = global_refs.to_vec();
         refs.extend(self.references.clone());
-        if let Some(stage) = self.stages.get(stage_index) {
+        if let Some((_, stage)) = self.stages.get_index(stage_index) {
             refs.extend(stage.references.clone());
         }
         refs.dedup();
@@ -89,17 +123,17 @@ output:
 references:
   - references/voice.md
 stages:
-  - name: research
+  research:
     description: "Gather context"
     pattern: extract_article_wisdom
     review: false
-  - name: outline
+  outline:
     description: "Create outline"
     pattern: create_outline
     references:
       - references/templates/techspec.md
     review: true
-  - name: draft
+  draft:
     description: "Write full draft"
     pattern: write_document
     review: true
@@ -113,9 +147,11 @@ stages:
         let pipeline = Pipeline::load(tmp.path()).expect("failed to load");
         assert_eq!(pipeline.name, "techspec");
         assert_eq!(pipeline.stages.len(), 3);
-        assert_eq!(pipeline.stages[0].name, "research");
-        assert!(!pipeline.stages[0].review);
-        assert!(pipeline.stages[1].review);
+        let (_, research) = pipeline.stages.get_index(0).unwrap();
+        assert_eq!(research.name, "research");
+        assert!(!research.review);
+        let (_, outline) = pipeline.stages.get_index(1).unwrap();
+        assert!(outline.review);
     }
 
     #[test]
@@ -126,7 +162,7 @@ output:
   destination: "."
   filename: "out.md"
 stages:
-  - name: s1
+  s1:
     description: "d"
     pattern: p
 "#;
@@ -142,7 +178,7 @@ description: "test"
 output:
   destination: "."
   filename: "out.md"
-stages: []
+stages: {}
 "#;
         let mut tmp = NamedTempFile::with_suffix(".yml").expect("failed to create temp file");
         write!(tmp, "{}", yaml).expect("failed to write");

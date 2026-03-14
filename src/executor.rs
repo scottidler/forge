@@ -71,8 +71,7 @@ fn determine_stage_index(run: &PipelineRun, pipeline: &Pipeline, stage_name: Opt
         // Find stage by name
         pipeline
             .stages
-            .iter()
-            .position(|s| s.name == name)
+            .get_index_of(name)
             .ok_or_else(|| eyre!("stage '{}' not found in pipeline '{}'", name, pipeline.name))
     } else {
         // Find next actionable stage
@@ -99,7 +98,10 @@ fn execute_stage(
     forge_dir: &Path,
     cli_input: Option<&str>,
 ) -> Result<()> {
-    let stage_def = &pipeline.stages[stage_index];
+    let (_, stage_def) = pipeline
+        .stages
+        .get_index(stage_index)
+        .ok_or_else(|| eyre!("stage index {} out of bounds", stage_index))?;
     let stage_num = stage_index + 1;
 
     println!(
@@ -165,10 +167,9 @@ fn execute_stage(
             run.current_stage = next;
             run.touch();
             store.update(run.clone())?;
-            println!(
-                "   Next: run `forge run` to execute stage '{}'",
-                pipeline.stages[next].name
-            );
+            if let Some((_, next_stage)) = pipeline.stages.get_index(next) {
+                println!("   Next: run `forge run` to execute stage '{}'", next_stage.name);
+            }
         } else {
             run.status = RunStatus::Completed;
             run.touch();
@@ -187,7 +188,10 @@ fn compose_stage_input(
     forge_dir: &Path,
     cli_input: Option<&str>,
 ) -> Result<String> {
-    let stage = &pipeline.stages[stage_index];
+    let (_, stage) = pipeline
+        .stages
+        .get_index(stage_index)
+        .ok_or_else(|| eyre!("stage index {} out of bounds", stage_index))?;
     let mut parts: Vec<String> = Vec::new();
 
     // 1. Task description
@@ -216,7 +220,10 @@ fn compose_stage_input(
         }
     } else {
         // Subsequent stages: use previous stage output
-        let prev = &pipeline.stages[stage_index - 1];
+        let (_, prev) = pipeline
+            .stages
+            .get_index(stage_index - 1)
+            .ok_or_else(|| eyre!("previous stage index out of bounds"))?;
         let prev_file = forge_dir.join(format!("{:02}-{}.md", stage_index, prev.name));
         if prev_file.exists() {
             let content = fs::read_to_string(&prev_file).context("failed to read previous stage output")?;
@@ -289,10 +296,31 @@ fn call_fabric(binary: &str, pattern: &str, model: &str, input: &str) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pipeline::{OutputConfig, Pipeline, Stage};
+    use crate::pipeline::{OutputConfig, Pipeline, Stage, StageMap};
     use tempfile::TempDir;
 
     fn test_pipeline() -> Pipeline {
+        let mut stages = StageMap::new();
+        stages.insert(
+            "research".to_string(),
+            Stage {
+                name: "research".to_string(),
+                description: "Gather context".to_string(),
+                pattern: "extract_article_wisdom".to_string(),
+                references: vec![],
+                review: false,
+            },
+        );
+        stages.insert(
+            "outline".to_string(),
+            Stage {
+                name: "outline".to_string(),
+                description: "Create outline".to_string(),
+                pattern: "create_outline".to_string(),
+                references: vec!["references/templates/techspec.md".to_string()],
+                review: true,
+            },
+        );
         Pipeline {
             name: "test".to_string(),
             description: "test pipeline".to_string(),
@@ -301,22 +329,7 @@ mod tests {
                 filename: "{date}-{slug}.md".to_string(),
             },
             references: vec!["references/voice.md".to_string()],
-            stages: vec![
-                Stage {
-                    name: "research".to_string(),
-                    description: "Gather context".to_string(),
-                    pattern: "extract_article_wisdom".to_string(),
-                    references: vec![],
-                    review: false,
-                },
-                Stage {
-                    name: "outline".to_string(),
-                    description: "Create outline".to_string(),
-                    pattern: "create_outline".to_string(),
-                    references: vec!["references/templates/techspec.md".to_string()],
-                    review: true,
-                },
-            ],
+            stages,
         }
     }
 

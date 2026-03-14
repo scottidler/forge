@@ -1,3 +1,18 @@
+# ============================================================================
+# confluence-doc.yml — Demonstrates MWP's "configure the factory" principle
+# ============================================================================
+# This pipeline and techspec.yml share the same 3-stage shape (research →
+# outline → draft) but produce different outputs because they load different
+# Layer 3 reference material. The template determines the product.
+#
+# MWP paper (p.5): "A workspace is set up once with the user's preferences,
+# brand, style, and structural decisions. After that, each run of the
+# pipeline produces a new deliverable using the same configuration."
+#
+# Same factory, different templates → different products.
+# ============================================================================
+
+# Layer 1: pipeline identity
 name: confluence-doc
 description: "Create a Confluence-ready document from research and outline"
 
@@ -5,26 +20,37 @@ output:
   destination: "docs/"
   filename: "{date}-{slug}.md"
 
+# Layer 3 (pipeline scope): Confluence template applies to all stages.
+# voice.md is already provided by global_references in forge.yml, so it's
+# not listed here — all_references_for_stage() merges global → pipeline →
+# stage refs and deduplicates.
+#
+# Compare with techspec.yml which loads techspec.md instead — that's the
+# only difference in the "factory" that changes the output format.
 references:
-  - references/voice.md
   - references/templates/confluence-doc.md
 
 stages:
-  - name: research
+  # Stage 1: identical to techspec research — same fabric pattern, same job.
+  # The stage doesn't know it's making a Confluence doc; it just gathers
+  # context. MWP principle: "one stage, one job."
+  research:
     description: "Gather context and background for the document topic"
     pattern: extract_article_wisdom
     review: false
 
-  - name: outline
+  # Stage 2: outline — this is where the Confluence template (Layer 3)
+  # shapes the output differently than techspec's outline stage.
+  # Same fabric pattern (create_outline), different reference material.
+  outline:
     description: "Create document outline following Confluence template structure"
     pattern: create_outline
     references:
       - references/templates/confluence-doc.md
     review: true
 
-  - name: draft
+  # Stage 3: draft — voice.md (from global refs) ensures consistent tone
+  draft:
     description: "Write full document following outline, voice, and Confluence formatting"
     pattern: write_document
-    references:
-      - references/voice.md
     review: true

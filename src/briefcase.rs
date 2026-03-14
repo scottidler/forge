@@ -46,7 +46,7 @@ pub fn unpack(config: &ForgeConfig, pipeline_name: &str, input: Option<&str>, sl
     // Collect all unique references (global + pipeline-level + all stage-level)
     let mut all_refs: Vec<String> = config.global_references.clone();
     all_refs.extend(pipeline.references.clone());
-    for stage in &pipeline.stages {
+    for stage in pipeline.stages.values() {
         all_refs.extend(stage.references.clone());
     }
     all_refs.sort();
@@ -87,7 +87,7 @@ pub fn unpack(config: &ForgeConfig, pipeline_name: &str, input: Option<&str>, sl
     fs::create_dir_all(&store_dir).context("failed to create store directory")?;
     let mut store = store::open_store(&store_dir)?;
 
-    let stage_names: Vec<String> = pipeline.stages.iter().map(|s| s.name.clone()).collect();
+    let stage_names: Vec<String> = pipeline.stages.keys().cloned().collect();
     let run = PipelineRun::new(
         pipeline_name.to_string(),
         cwd.to_string_lossy().to_string(),

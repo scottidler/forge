@@ -1,27 +1,53 @@
+# ============================================================================
+# research.yml — A 3-stage pipeline mapping directly to MWP's canonical
+# example (01_research → 02_script → 03_production)
+# ============================================================================
+# This pipeline mirrors the paper's script-to-animation workspace (Section
+# 4.2) in structure: gather (research), analyze (script), synthesize
+# (production). Three stages, each transforming the previous output into
+# a more refined intermediate representation — the multi-pass compiler
+# analogy from Section 6.1.
+# ============================================================================
+
+# Layer 1: pipeline identity
 name: research
 description: "Research a topic and produce a structured analysis"
 
+# Final output destination — written on `forge pack`
 output:
   destination: "docs/"
   filename: "{date}-{slug}-research.md"
 
-references:
-  - references/voice.md
+# Layer 3 (pipeline scope): no pipeline-level references.
+# voice.md is already provided by global_references in forge.yml, so
+# listing it here would be redundant — all_references_for_stage() merges
+# global → pipeline → stage refs and deduplicates.
+# For now, the pipeline inherits global refs only.
 
 stages:
-  - name: gather
+  # Stage 1: Gather — the "raw material" pass
+  # Layer 4 input: user-provided topic (--input or .forge/input.md)
+  # Layer 4 output: .forge/01-gather.md
+  # No stage-specific Layer 3 refs — just the global voice.md
+  gather:
     description: "Gather raw information, links, quotes, and data points about the topic"
     pattern: extract_article_wisdom
     review: false
 
-  - name: analyze
+  # Stage 2: Analyze — the "transformation" pass
+  # Layer 4 input: .forge/01-gather.md (raw gathered material)
+  # Layer 4 output: .forge/02-analyze.md
+  # Review gate: human checks whether the analysis is on the right track
+  # before the final synthesis pass
+  analyze:
     description: "Analyze gathered information, identify patterns, compare alternatives"
     pattern: analyze_paper
     review: true
 
-  - name: synthesize
+  # Stage 3: Synthesize — the "production" pass
+  # Layer 4 input: .forge/02-analyze.md (reviewed/edited analysis)
+  # Layer 4 output: .forge/03-synthesize.md (the final product)
+  synthesize:
     description: "Synthesize analysis into a structured document with recommendations"
     pattern: write_document
-    references:
-      - references/voice.md
     review: true

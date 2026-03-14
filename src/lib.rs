@@ -62,7 +62,7 @@ fn cmd_describe(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<
     }
 
     println!("\n{}:", "Stages".bold());
-    for (i, stage) in pipeline.stages.iter().enumerate() {
+    for (i, stage) in pipeline.stages.values().enumerate() {
         if let Some(filter) = stage_filter
             && i != filter
         {
@@ -104,7 +104,7 @@ fn cmd_refs(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<usiz
         println!("  [{}] {}", status, r);
     }
 
-    for (i, stage) in pipeline.stages.iter().enumerate() {
+    for (i, stage) in pipeline.stages.values().enumerate() {
         if let Some(filter) = stage_filter
             && i != filter
         {
