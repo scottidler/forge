@@ -2,6 +2,7 @@ pub mod briefcase;
 pub mod cli;
 pub mod config;
 pub mod executor;
+pub mod init;
 pub mod pipeline;
 pub mod store;
 
