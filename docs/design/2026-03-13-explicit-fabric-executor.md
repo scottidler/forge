@@ -2,8 +2,8 @@
 
 **Author:** Scott Idler
 **Date:** 2026-03-13
-**Status:** Draft
-**Review Passes Completed:** 2/5
+**Status:** Implemented
+**Review Passes Completed:** 5/5
 
 ## Summary
 
@@ -52,6 +52,10 @@ Two changes shipped together:
 
 1. **Rename `pattern` → `fabric-pattern`** across YAML and Rust, with `#[serde(rename = "fabric-pattern")]` on the struct field.
 2. **Add `REQUIRED TOOLS` to `--help`** using gx's proven `LazyLock` + `after_help` pattern.
+
+### How the pieces fit together
+
+The `fabric:` block in `forge.yml` configures **how** to call Fabric (binary path, model override). The `fabric-pattern` field on each stage specifies **what** Fabric pattern to invoke. The executor in `executor.rs` combines both: `call_fabric(config.fabric.binary, stage.fabric_pattern, config.fabric.model, input)`.
 
 ### Part 1: Field Rename
 
@@ -184,6 +188,8 @@ fn check_tool_version(tool: &str, version_arg: &str) -> ToolStatus {
 
 Note: Unlike gx, we do **not** enforce a minimum version for fabric -- just check presence. Fabric outputs a bare version string (`1.4.376`), so no parsing needed; we display it as-is.
 
+The existing `check_fabric_available()` function in `executor.rs` is kept as a **runtime guard** (called during `forge unpack`). The `--help` check is informational only -- it tells users what's missing, but doesn't block non-fabric commands like `forge pipelines` or `forge ls`.
+
 #### CLI integration (`src/cli.rs`)
 
 ```rust
@@ -219,15 +225,16 @@ Logs are written to: ~/.local/share/forge/logs/forge.log
 2. Update validation in `pipeline.rs`
 3. Update executor call in `executor.rs`
 4. Update display in `lib.rs`
-5. Update all pipeline YAML files
+5. Update all pipeline YAML files (including comments that reference `pattern`)
 6. Update all test code
 7. Run `otto ci` to verify
 
 **Phase 2: Required tools** (separate commit)
 1. Add `ToolStatus`, `check_tool_version`, `get_tool_validation_help` to `cli.rs`
 2. Add `LazyLock` static and wire into `after_help`
-3. Remove the existing `after_help` string (logs line moves into the new function)
-4. Run `otto ci` to verify
+3. Replace the existing static `after_help` string on line 9 (logs line moves into the new function)
+4. Note: `Init` command is already handled before config loading in `main.rs` -- no interaction with this change
+5. Run `otto ci` to verify
 
 ## Alternatives Considered
 
@@ -281,6 +288,8 @@ Logs are written to: ~/.local/share/forge/logs/forge.log
 | Missed `pattern` reference in code | Low | Low | `otto ci` catches compile errors; grep for `pattern` after |
 | `fabric --version` output format changes | Low | Low | We display the raw output; no parsing to break |
 | `LazyLock` not available on user's Rust toolchain | Low | Med | Requires Rust 1.80+; forge already uses recent features |
+| Custom `fabric.binary` not reflected in `--help` | Med | Low | `--help` checks `fabric` (the default); runtime guard in `executor.rs` checks the configured binary. Acceptable: the `--help` check is a quick diagnostic, not authoritative. |
+| Future second executor type needs struct refactor | Med | Low | Current `String` field becomes `Option<String>`; eventually migrate to enum. The naming convention (`fabric-pattern`, `shell-command`) guides this naturally. |
 
 ## Open Questions
 

@@ -1,12 +1,51 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use std::process::Command as ProcessCommand;
+use std::sync::LazyLock;
+
+static HELP_TEXT: LazyLock<String> = LazyLock::new(get_tool_validation_help);
+
+struct ToolStatus {
+    version: String,
+    status_icon: String,
+}
+
+fn get_tool_validation_help() -> String {
+    let mut help = String::new();
+    help.push_str("REQUIRED TOOLS:\n");
+
+    let fabric_status = check_tool_version("fabric", "--version");
+    help.push_str(&format!(
+        "  {} {:<10} {}\n",
+        fabric_status.status_icon, "fabric", fabric_status.version
+    ));
+
+    help.push_str("\nLogs are written to: ~/.local/share/forge/logs/forge.log");
+    help
+}
+
+fn check_tool_version(tool: &str, version_arg: &str) -> ToolStatus {
+    match ProcessCommand::new(tool).arg(version_arg).output() {
+        Ok(output) if output.status.success() => {
+            let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            ToolStatus {
+                version: if version.is_empty() { "unknown".into() } else { version },
+                status_icon: "\u{2705}".into(),
+            }
+        }
+        _ => ToolStatus {
+            version: "not found".into(),
+            status_icon: "\u{274C}".into(),
+        },
+    }
+}
 
 #[derive(Parser)]
 #[command(
     name = "forge",
     about = "MWP Pipeline Runner -- portable briefcase pattern for content pipelines",
     version = env!("GIT_DESCRIBE"),
-    after_help = "Logs are written to: ~/.local/share/forge/logs/forge.log"
+    after_help = HELP_TEXT.as_str()
 )]
 pub struct Cli {
     /// Path to forge.yml config
