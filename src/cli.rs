@@ -58,9 +58,12 @@ pub enum Command {
         input: Option<String>,
     },
 
-    /// List active pipeline runs
+    /// List pipelines and active runs
     Ls {
-        /// Include packed/completed/abandoned runs
+        /// Pipeline names or substrings to show in detail
+        pipelines: Vec<String>,
+
+        /// Show detailed view for all pipelines
         #[arg(long)]
         all: bool,
     },
@@ -100,9 +103,6 @@ pub enum Command {
         #[arg(short, long)]
         stage: Option<usize>,
     },
-
-    /// List all available pipeline definitions
-    Pipelines,
 
     /// Initialize forge configuration in ~/.config/forge/
     Init {

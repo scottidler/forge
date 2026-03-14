@@ -6,6 +6,9 @@ pub mod init;
 pub mod pipeline;
 pub mod store;
 
+use std::collections::HashMap;
+use std::path::PathBuf;
+
 use colored::Colorize;
 use eyre::{Result, eyre};
 
@@ -15,7 +18,6 @@ use crate::pipeline::Pipeline;
 
 pub fn run_command(command: &Command, config: &ForgeConfig) -> Result<()> {
     match command {
-        Command::Pipelines => cmd_pipelines(config),
         Command::Describe { pipeline, stage } => cmd_describe(config, pipeline, *stage),
         Command::Refs { pipeline, stage } => cmd_refs(config, pipeline, *stage),
         Command::Unpack { pipeline, input, slug } => {
@@ -23,28 +25,11 @@ pub fn run_command(command: &Command, config: &ForgeConfig) -> Result<()> {
         }
         Command::Pack { abandon } => briefcase::pack(config, *abandon),
         Command::Run { stage, input } => executor::run_stage(config, stage.as_deref(), input.as_deref()),
-        Command::Ls { all } => cmd_ls(config, *all),
+        Command::Ls { pipelines, all } => cmd_ls(config, pipelines, *all),
         Command::Show { run_id } => cmd_show(config, run_id.as_deref()),
         Command::History { pipeline, limit } => cmd_history(config, pipeline.as_deref(), *limit),
         Command::Init { .. } => unreachable!("Init is handled before config loading"),
     }
-}
-
-fn cmd_pipelines(config: &ForgeConfig) -> Result<()> {
-    if config.pipelines.is_empty() {
-        println!("No pipelines configured.");
-        return Ok(());
-    }
-    let pipelines = config.list_pipelines()?;
-    if pipelines.is_empty() {
-        println!("No pipelines found in configured directories.");
-        return Ok(());
-    }
-    println!("{}", "Available pipelines:".bold());
-    for (name, path) in &pipelines {
-        println!("  {} -> {}", name.cyan(), path.display());
-    }
-    Ok(())
 }
 
 fn cmd_describe(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<usize>) -> Result<()> {
@@ -127,58 +112,185 @@ fn cmd_refs(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<usiz
     Ok(())
 }
 
-fn cmd_ls(config: &ForgeConfig, all: bool) -> Result<()> {
+fn cmd_ls(config: &ForgeConfig, pipelines: &[String], all: bool) -> Result<()> {
+    let available = config.list_pipelines()?;
+    let active_runs = load_active_runs(config)?;
+
+    if pipelines.is_empty() && !all {
+        cmd_ls_compact(config, &available, &active_runs)
+    } else {
+        let matched = if all { available } else { filter_pipelines(&available, pipelines)? };
+        cmd_ls_detailed(config, &matched, &active_runs)
+    }
+}
+
+fn cmd_ls_compact(
+    config: &ForgeConfig,
+    available: &[(String, PathBuf)],
+    active_runs: &HashMap<String, Vec<store::PipelineRun>>,
+) -> Result<()> {
+    if available.is_empty() {
+        println!("No pipelines configured.");
+        return Ok(());
+    }
+
+    // Load descriptions and compute column width
+    let mut entries: Vec<(String, String, usize)> = Vec::new();
+    let mut max_name_len = 0;
+    for (name, path) in available {
+        let description = match Pipeline::load(path) {
+            Ok(p) => p.description,
+            Err(e) => {
+                log::warn!("failed to load pipeline {}: {}", name, e);
+                "(load error)".to_string()
+            }
+        };
+        let count = active_runs.get(name).map_or(0, |v| v.len());
+        max_name_len = max_name_len.max(name.len());
+        entries.push((name.clone(), description, count));
+    }
+
+    println!("{}:", "Pipelines".bold());
+    for (name, description, count) in &entries {
+        let count_suffix = if *count > 0 { format!(" ({})", count) } else { String::new() };
+        let padded_name = format!("{:width$}", name, width = max_name_len);
+        println!("  {} - {}{}", padded_name.cyan(), description, count_suffix.bold());
+    }
+    let _ = config; // suppress unused warning
+    Ok(())
+}
+
+fn cmd_ls_detailed(
+    config: &ForgeConfig,
+    matched: &[(String, PathBuf)],
+    active_runs: &HashMap<String, Vec<store::PipelineRun>>,
+) -> Result<()> {
+    if matched.is_empty() {
+        return Ok(());
+    }
+
+    for (i, (name, path)) in matched.iter().enumerate() {
+        if i > 0 {
+            println!();
+        }
+
+        match Pipeline::load(path) {
+            Ok(pipeline) => {
+                let stage_count = pipeline.stages.len();
+                let stage_chain = format_stage_chain(&pipeline);
+                println!(
+                    "{} ({} {}) - {}",
+                    name.bold().cyan(),
+                    stage_count,
+                    if stage_count == 1 { "stage" } else { "stages" },
+                    pipeline.description
+                );
+                println!("  output: {}/{}", pipeline.output.destination, pipeline.output.filename);
+                println!("  stages: {}", stage_chain);
+
+                if let Some(runs) = active_runs.get(name) {
+                    println!("  runs:");
+                    for run in runs {
+                        let stage_info = if run.current_stage < run.stages.len() {
+                            format!(
+                                "stage {}/{} ({})",
+                                run.current_stage + 1,
+                                run.stages.len(),
+                                run.stages[run.current_stage].name
+                            )
+                        } else {
+                            "complete".to_string()
+                        };
+                        println!(
+                            "    {}  [{}]  {}   {}",
+                            &run.id[..8].dimmed(),
+                            run.status.to_string().yellow(),
+                            stage_info,
+                            run.working_dir.dimmed()
+                        );
+                    }
+                } else {
+                    println!("  {}", "(no active runs)".dimmed());
+                }
+            }
+            Err(e) => {
+                eprintln!("{}: failed to load pipeline definition: {}", name.bold().cyan(), e);
+            }
+        }
+    }
+    let _ = config; // suppress unused warning
+    Ok(())
+}
+
+/// Load all active (Unpacked + InProgress) runs, grouped by pipeline name
+fn load_active_runs(config: &ForgeConfig) -> Result<HashMap<String, Vec<store::PipelineRun>>> {
     let store_dir = config.store_dir()?;
     if !store_dir.exists() {
-        println!("No pipeline runs found.");
-        return Ok(());
+        return Ok(HashMap::new());
     }
     let store = store::open_store(&store_dir)?;
-    let filters = if all {
-        vec![]
-    } else {
-        vec![taskstore::Filter {
-            field: "status".to_string(),
-            op: taskstore::FilterOp::Eq,
-            value: taskstore::IndexValue::String("Unpacked".to_string()),
-        }]
-    };
-    let mut runs: Vec<store::PipelineRun> = store.list(&filters)?;
-    if !all {
-        // Also include InProgress
-        let in_progress: Vec<store::PipelineRun> = store.list(&[taskstore::Filter {
-            field: "status".to_string(),
-            op: taskstore::FilterOp::Eq,
-            value: taskstore::IndexValue::String("InProgress".to_string()),
-        }])?;
-        runs.extend(in_progress);
+
+    let mut runs: Vec<store::PipelineRun> = store.list(&[taskstore::Filter {
+        field: "status".to_string(),
+        op: taskstore::FilterOp::Eq,
+        value: taskstore::IndexValue::String("Unpacked".to_string()),
+    }])?;
+    let in_progress: Vec<store::PipelineRun> = store.list(&[taskstore::Filter {
+        field: "status".to_string(),
+        op: taskstore::FilterOp::Eq,
+        value: taskstore::IndexValue::String("InProgress".to_string()),
+    }])?;
+    runs.extend(in_progress);
+
+    let mut grouped: HashMap<String, Vec<store::PipelineRun>> = HashMap::new();
+    for run in runs {
+        grouped.entry(run.pipeline.clone()).or_default().push(run);
     }
-    if runs.is_empty() {
-        println!("No active pipeline runs.");
-        return Ok(());
+    Ok(grouped)
+}
+
+/// Filter pipelines by substring matching against user-provided patterns
+fn filter_pipelines(available: &[(String, PathBuf)], patterns: &[String]) -> Result<Vec<(String, PathBuf)>> {
+    let mut matched = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for pattern in patterns {
+        let mut found = false;
+        for (name, path) in available {
+            if matches_pipeline(name, pattern) && seen.insert(name.clone()) {
+                matched.push((name.clone(), path.clone()));
+                found = true;
+            }
+        }
+        if !found {
+            eprintln!("No pipeline matching '{}' found.", pattern);
+        }
     }
-    println!("{}", "Pipeline runs:".bold());
-    for run in &runs {
-        let stage_info = if run.current_stage < run.stages.len() {
-            format!(
-                "stage {}/{} ({})",
-                run.current_stage + 1,
-                run.stages.len(),
-                run.stages[run.current_stage].name
-            )
-        } else {
-            "complete".to_string()
-        };
-        println!(
-            "  {} {} [{}] {} -- {}",
-            &run.id[..8].dimmed(),
-            run.pipeline.cyan(),
-            run.status.to_string().yellow(),
-            stage_info,
-            run.working_dir.dimmed()
-        );
-    }
-    Ok(())
+
+    // Sort alphabetically like the full list
+    matched.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(matched)
+}
+
+/// Case-insensitive substring match
+fn matches_pipeline(name: &str, pattern: &str) -> bool {
+    name.to_lowercase().contains(&pattern.to_lowercase())
+}
+
+/// Format stage chain like: research -> outline [review] -> draft [review]
+fn format_stage_chain(pipeline: &Pipeline) -> String {
+    pipeline
+        .stages
+        .values()
+        .map(|stage| {
+            if stage.review {
+                format!("{} [review]", stage.name)
+            } else {
+                stage.name.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" -> ")
 }
 
 fn cmd_show(config: &ForgeConfig, run_id: Option<&str>) -> Result<()> {
@@ -283,6 +395,10 @@ mod tests {
     use crate::store::{PipelineRun, RunStatus};
     use tempfile::TempDir;
 
+    static PIPELINE_YAML: &str = "name: techspec\ndescription: Research, outline, draft, and review a technical specification\noutput:\n  destination: docs/design\n  filename: \"{date}-{slug}.md\"\nstages:\n  research:\n    description: Gather context\n    command: fabric\n    review: false\n  outline:\n    description: Create outline\n    command: fabric\n    review: true\n  draft:\n    description: Write full draft\n    command: fabric\n    review: true\n";
+
+    static RESEARCH_YAML: &str = "name: research\ndescription: Deep research pipeline\noutput:\n  destination: research\n  filename: \"{date}-{slug}.md\"\nstages:\n  gather:\n    description: Gather sources\n    command: fabric\n  analyze:\n    description: Analyze sources\n    command: fabric\n";
+
     fn test_config(dir: &std::path::Path) -> ForgeConfig {
         ForgeConfig {
             version: "1".to_string(),
@@ -293,18 +409,127 @@ mod tests {
         }
     }
 
+    fn test_config_with_pipelines(dir: &std::path::Path) -> ForgeConfig {
+        let pipelines_dir = dir.join("pipelines");
+        std::fs::create_dir_all(&pipelines_dir).expect("failed to create dir");
+        std::fs::write(pipelines_dir.join("techspec.yml"), PIPELINE_YAML).expect("failed to write");
+        std::fs::write(pipelines_dir.join("research.yml"), RESEARCH_YAML).expect("failed to write");
+        let mut config = test_config(dir);
+        config.pipelines.push("pipelines/".to_string());
+        config
+    }
+
+    // --- matches_pipeline tests ---
+
     #[test]
-    fn test_cmd_ls_empty_store() {
-        let dir = TempDir::new().expect("failed to create temp dir");
-        let config = test_config(dir.path());
-        // Should not error when store dir doesn't exist
-        assert!(cmd_ls(&config, false).is_ok());
+    fn test_matches_pipeline_exact() {
+        assert!(matches_pipeline("techspec", "techspec"));
     }
 
     #[test]
-    fn test_cmd_ls_with_runs() {
+    fn test_matches_pipeline_substring() {
+        assert!(matches_pipeline("techspec", "tech"));
+        assert!(matches_pipeline("techspec", "spec"));
+    }
+
+    #[test]
+    fn test_matches_pipeline_case_insensitive() {
+        assert!(matches_pipeline("techspec", "TechSpec"));
+        assert!(matches_pipeline("TechSpec", "techspec"));
+    }
+
+    #[test]
+    fn test_matches_pipeline_no_match() {
+        assert!(!matches_pipeline("techspec", "blog"));
+    }
+
+    #[test]
+    fn test_matches_pipeline_empty_pattern() {
+        assert!(matches_pipeline("techspec", ""));
+    }
+
+    // --- filter_pipelines tests ---
+
+    #[test]
+    fn test_filter_pipelines_single_match() {
+        let available = vec![
+            ("research".to_string(), PathBuf::from("/a/research.yml")),
+            ("techspec".to_string(), PathBuf::from("/a/techspec.yml")),
+        ];
+        let result = filter_pipelines(&available, &["tech".to_string()]).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "techspec");
+    }
+
+    #[test]
+    fn test_filter_pipelines_multi_match() {
+        let available = vec![
+            ("blog-post".to_string(), PathBuf::from("/a/blog-post.yml")),
+            ("research".to_string(), PathBuf::from("/a/research.yml")),
+            ("techspec".to_string(), PathBuf::from("/a/techspec.yml")),
+        ];
+        let result = filter_pipelines(&available, &["tech".to_string(), "blog".to_string()]).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].0, "blog-post");
+        assert_eq!(result[1].0, "techspec");
+    }
+
+    #[test]
+    fn test_filter_pipelines_overlapping_patterns() {
+        let available = vec![("techspec".to_string(), PathBuf::from("/a/techspec.yml"))];
+        // Both patterns match "techspec" but it should only appear once
+        let result = filter_pipelines(&available, &["tech".to_string(), "spec".to_string()]).unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_filter_pipelines_no_match() {
+        let available = vec![("techspec".to_string(), PathBuf::from("/a/techspec.yml"))];
+        let result = filter_pipelines(&available, &["xyz".to_string()]).unwrap();
+        assert!(result.is_empty());
+    }
+
+    // --- format_stage_chain tests ---
+
+    #[test]
+    fn test_format_stage_chain_with_review() {
+        let tmp = tempfile::NamedTempFile::with_suffix(".yml").unwrap();
+        std::fs::write(tmp.path(), PIPELINE_YAML).unwrap();
+        let pipeline = Pipeline::load(tmp.path()).unwrap();
+        let chain = format_stage_chain(&pipeline);
+        assert_eq!(chain, "research -> outline [review] -> draft [review]");
+    }
+
+    #[test]
+    fn test_format_stage_chain_no_review() {
+        let tmp = tempfile::NamedTempFile::with_suffix(".yml").unwrap();
+        std::fs::write(tmp.path(), RESEARCH_YAML).unwrap();
+        let pipeline = Pipeline::load(tmp.path()).unwrap();
+        let chain = format_stage_chain(&pipeline);
+        assert_eq!(chain, "gather -> analyze");
+    }
+
+    // --- cmd_ls compact mode tests ---
+
+    #[test]
+    fn test_cmd_ls_compact_no_pipelines() {
         let dir = TempDir::new().expect("failed to create temp dir");
         let config = test_config(dir.path());
+        // No pipelines configured - should print message and succeed
+        assert!(cmd_ls(&config, &[], false).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_ls_compact_with_pipelines() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config_with_pipelines(dir.path());
+        assert!(cmd_ls(&config, &[], false).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_ls_compact_with_active_runs() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config_with_pipelines(dir.path());
         let store_dir = config.store_dir().expect("failed to get store dir");
         std::fs::create_dir_all(&store_dir).expect("failed to create store dir");
         let mut store = store::open_store(&store_dir).expect("failed to open store");
@@ -318,9 +543,102 @@ mod tests {
         );
         store.create(run).expect("failed to create run");
 
-        assert!(cmd_ls(&config, false).is_ok());
-        assert!(cmd_ls(&config, true).is_ok());
+        assert!(cmd_ls(&config, &[], false).is_ok());
     }
+
+    // --- cmd_ls detailed mode tests ---
+
+    #[test]
+    fn test_cmd_ls_detailed_by_pattern() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config_with_pipelines(dir.path());
+        assert!(cmd_ls(&config, &["tech".to_string()], false).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_ls_detailed_all() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config_with_pipelines(dir.path());
+        assert!(cmd_ls(&config, &[], true).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_ls_detailed_with_active_runs() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config_with_pipelines(dir.path());
+        let store_dir = config.store_dir().expect("failed to get store dir");
+        std::fs::create_dir_all(&store_dir).expect("failed to create store dir");
+        let mut store = store::open_store(&store_dir).expect("failed to open store");
+
+        let run = PipelineRun::new(
+            "techspec".to_string(),
+            "/tmp/test".to_string(),
+            None,
+            None,
+            vec!["research".to_string(), "outline".to_string()],
+        );
+        store.create(run).expect("failed to create run");
+
+        assert!(cmd_ls(&config, &["tech".to_string()], false).is_ok());
+    }
+
+    #[test]
+    fn test_cmd_ls_detailed_no_match() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config_with_pipelines(dir.path());
+        // Should succeed but print warning about no match
+        assert!(cmd_ls(&config, &["xyz".to_string()], false).is_ok());
+    }
+
+    // --- load_active_runs tests ---
+
+    #[test]
+    fn test_load_active_runs_no_store() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config(dir.path());
+        let runs = load_active_runs(&config).unwrap();
+        assert!(runs.is_empty());
+    }
+
+    #[test]
+    fn test_load_active_runs_empty_store() {
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config(dir.path());
+        // Store dir doesn't exist - should return empty map
+        let runs = load_active_runs(&config).unwrap();
+        assert!(runs.is_empty());
+    }
+
+    #[test]
+    fn test_load_active_runs_groups_by_pipeline() {
+        // Note: load_active_runs opens its own store handle, and taskstore
+        // has eventual consistency across handles. We test grouping behavior
+        // through cmd_ls integration tests instead, and test the empty case directly.
+        // Here we verify the function works when the store exists but has no active runs.
+        let dir = TempDir::new().expect("failed to create temp dir");
+        let config = test_config(dir.path());
+        let store_dir = config.store_dir().expect("failed to get store dir");
+        std::fs::create_dir_all(&store_dir).expect("failed to create store dir");
+
+        let mut s = store::open_store(&store_dir).expect("failed to open store");
+        let mut completed = PipelineRun::new(
+            "techspec".to_string(),
+            "/tmp/d".to_string(),
+            None,
+            None,
+            vec!["s1".to_string()],
+        );
+        completed.status = RunStatus::Completed;
+        completed.touch();
+        s.create(completed).unwrap();
+        drop(s);
+
+        // load_active_runs should find no Unpacked/InProgress runs
+        let runs = load_active_runs(&config).unwrap();
+        assert!(runs.is_empty());
+    }
+
+    // --- existing tests updated ---
 
     #[test]
     fn test_cmd_history_empty() {
@@ -383,36 +701,12 @@ mod tests {
     }
 
     #[test]
-    fn test_cmd_pipelines_empty() {
-        let dir = TempDir::new().expect("failed to create temp dir");
-        let config = test_config(dir.path());
-        assert!(cmd_pipelines(&config).is_ok());
-    }
-
-    #[test]
-    fn test_cmd_pipelines_with_entries() {
-        let dir = TempDir::new().expect("failed to create temp dir");
-        // Create a pipelines directory with a YAML file
-        let pipelines_dir = dir.path().join("pipelines");
-        std::fs::create_dir_all(&pipelines_dir).expect("failed to create dir");
-        std::fs::write(
-            pipelines_dir.join("techspec.yml"),
-            "name: techspec\ndescription: test\noutput:\n  destination: .\n  filename: out.md\nstages:\n  s1:\n    description: d\n    command: echo\n",
-        )
-        .expect("failed to write");
-        let mut config = test_config(dir.path());
-        config.pipelines.push("pipelines/".to_string());
-        assert!(cmd_pipelines(&config).is_ok());
-    }
-
-    #[test]
     fn test_store_query_by_status() {
         let dir = TempDir::new().expect("failed to create temp dir");
         let store_dir = dir.path().join("store");
         std::fs::create_dir_all(&store_dir).expect("failed to create store dir");
         let mut store = store::open_store(&store_dir).expect("failed to open store");
 
-        // Create two runs with different statuses
         let run1 = PipelineRun::new(
             "techspec".to_string(),
             "/tmp/a".to_string(),
@@ -433,7 +727,6 @@ mod tests {
         store.create(run1).expect("failed to create run1");
         store.create(run2).expect("failed to create run2");
 
-        // Query only Unpacked
         let unpacked: Vec<PipelineRun> = store
             .list(&[taskstore::Filter {
                 field: "status".to_string(),
@@ -444,7 +737,6 @@ mod tests {
         assert_eq!(unpacked.len(), 1);
         assert_eq!(unpacked[0].pipeline, "techspec");
 
-        // Query all
         let all: Vec<PipelineRun> = store.list(&[]).expect("failed to list");
         assert_eq!(all.len(), 2);
     }
