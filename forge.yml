@@ -1,18 +1,68 @@
+# ============================================================================
+# forge.yml — MWP Layer 0: "Where am I?"
+# ============================================================================
+# In MWP, Layer 0 is the CLAUDE.md file that tells the agent what workspace
+# it's in, what the folder structure contains, and where to find things.
+#
+# This file IS forge's Layer 0. It answers:
+#   - What is this system? (forge, version 1)
+#   - Where does factory material live? (home)
+#   - Where does run state get stored? (store)
+#   - What pipelines are available? (the routing table)
+#   - What tools execute the work? (fabric config)
+#   - What reference material applies everywhere? (global_references)
+# ============================================================================
+
 forge:
   version: "1"
+
+  # The "briefcase" — where all factory material lives:
+  # pipeline definitions, reference material, templates, rubrics.
+  # MWP equivalent: the workspace root folder itself.
   home: ~/repos/scottidler/forge
+
+  # Where TaskStore persists pipeline run state and archived artifacts.
+  # MWP has no equivalent — MWP uses the filesystem (output/ folders)
+  # as its state store. Forge externalizes state so .forge/ can be
+  # packed up and the repo left clean.
   store: ~/.local/share/forge
 
+  # ========================================================================
+  # MWP Layer 1: "Where do I go?" — the routing table
+  # ========================================================================
+  # In MWP, Layer 1 is the workspace-level CONTEXT.md that says "given what
+  # the user wants to do, which stage folder handles it." In forge, these
+  # pipeline directories are scanned for .yml files. Pipeline names are
+  # derived from filename stems (techspec.yml → techspec). First directory
+  # wins on name collision, following $PATH semantics.
+  #
+  # When you run `forge unpack techspec`, forge scans these directories
+  # for techspec.yml and loads the first match.
+  # ========================================================================
   pipelines:
-    techspec: pipelines/techspec.yml
-    research: pipelines/research.yml
-    confluence-doc: pipelines/confluence-doc.yml
-    status-update: pipelines/status-update.yml
-    jira-epic: pipelines/jira-epic.yml
+    - pipelines/
 
+  # Stage executor configuration.
+  # MWP uses Claude Code reading CONTEXT.md files; forge pipes structured
+  # context through fabric patterns instead.
   fabric:
     binary: fabric
     model: ""
 
+  # ========================================================================
+  # MWP Layer 3 (global scope): "What rules apply everywhere?"
+  # ========================================================================
+  # In MWP, Layer 3 is reference material — stable files configured once
+  # during workspace setup that persist across every run. The paper calls
+  # this "the factory" (Table 2, p.6).
+  #
+  # global_references are Layer 3 material that applies to ALL pipelines.
+  # voice.md defines writing style and tone — every stage in every pipeline
+  # receives it. This is the equivalent of MWP's shared/ or _config/ folder
+  # at the workspace root.
+  #
+  # Hierarchy: global_references → pipeline.references → stage.references
+  # (merged in pipeline.rs:all_references_for_stage)
+  # ========================================================================
   global_references:
     - references/voice.md

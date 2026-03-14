@@ -349,7 +349,7 @@ mod tests {
             version: "1".to_string(),
             home: dir.path().to_string_lossy().to_string(),
             store: dir.path().join("store").to_string_lossy().to_string(),
-            pipelines: std::collections::HashMap::new(),
+            pipelines: vec![],
             fabric: crate::config::FabricConfig::default(),
             global_references: vec![],
         };
@@ -375,7 +375,7 @@ mod tests {
             version: "1".to_string(),
             home: dir.path().to_string_lossy().to_string(),
             store: dir.path().join("store").to_string_lossy().to_string(),
-            pipelines: std::collections::HashMap::new(),
+            pipelines: vec![],
             fabric: crate::config::FabricConfig::default(),
             global_references: vec![],
         };
@@ -398,7 +398,7 @@ mod tests {
             version: "1".to_string(),
             home: dir.path().to_string_lossy().to_string(),
             store: dir.path().join("store").to_string_lossy().to_string(),
-            pipelines: std::collections::HashMap::new(),
+            pipelines: vec![],
             fabric: crate::config::FabricConfig::default(),
             global_references: vec![],
         };

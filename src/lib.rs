@@ -33,16 +33,14 @@ fn cmd_pipelines(config: &ForgeConfig) -> Result<()> {
         println!("No pipelines configured.");
         return Ok(());
     }
+    let pipelines = config.list_pipelines()?;
+    if pipelines.is_empty() {
+        println!("No pipelines found in configured directories.");
+        return Ok(());
+    }
     println!("{}", "Available pipelines:".bold());
-    for (name, path) in &config.pipelines {
-        let home = config.home_dir()?;
-        let full_path = home.join(path);
-        let status = if full_path.exists() {
-            "ok".green().to_string()
-        } else {
-            "missing".red().to_string()
-        };
-        println!("  {} [{}] -> {}", name.cyan(), status, path);
+    for (name, path) in &pipelines {
+        println!("  {} -> {}", name.cyan(), path.display());
     }
     Ok(())
 }
@@ -283,7 +281,7 @@ mod tests {
             version: "1".to_string(),
             home: dir.to_string_lossy().to_string(),
             store: dir.join("store").to_string_lossy().to_string(),
-            pipelines: std::collections::HashMap::new(),
+            pipelines: vec![],
             fabric: crate::config::FabricConfig::default(),
             global_references: vec![],
         }
@@ -388,10 +386,16 @@ mod tests {
     #[test]
     fn test_cmd_pipelines_with_entries() {
         let dir = TempDir::new().expect("failed to create temp dir");
+        // Create a pipelines directory with a YAML file
+        let pipelines_dir = dir.path().join("pipelines");
+        std::fs::create_dir_all(&pipelines_dir).expect("failed to create dir");
+        std::fs::write(
+            pipelines_dir.join("techspec.yml"),
+            "name: techspec\ndescription: test\noutput:\n  destination: .\n  filename: out.md\nstages:\n  s1:\n    description: d\n    pattern: p\n",
+        )
+        .expect("failed to write");
         let mut config = test_config(dir.path());
-        config
-            .pipelines
-            .insert("techspec".to_string(), "pipelines/techspec.yml".to_string());
+        config.pipelines.push("pipelines/".to_string());
         assert!(cmd_pipelines(&config).is_ok());
     }
 
