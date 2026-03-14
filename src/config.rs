@@ -263,7 +263,7 @@ mod tests {
         let dir2 = dir.path().join("shared");
         fs::create_dir_all(&dir1).expect("failed to create dir1");
         fs::create_dir_all(&dir2).expect("failed to create dir2");
-        // Same name in both — first directory wins
+        // Same name in both -- first directory wins
         fs::write(dir1.join("techspec.yml"), "local").expect("failed to write");
         fs::write(dir2.join("techspec.yml"), "shared").expect("failed to write");
 

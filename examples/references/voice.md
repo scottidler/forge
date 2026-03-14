@@ -1,10 +1,10 @@
 # Voice Guide
 
 ## Tone
-- Direct and concise — lead with the point, not the preamble
-- Technical but accessible — explain decisions, not just state them
-- Opinionated — take a position, defend it with evidence
-- Practical — focus on what works, not what's theoretically elegant
+- Direct and concise -- lead with the point, not the preamble
+- Technical but accessible -- explain decisions, not just state them
+- Opinionated -- take a position, defend it with evidence
+- Practical -- focus on what works, not what's theoretically elegant
 
 ## Style
 - Short paragraphs (2-4 sentences)

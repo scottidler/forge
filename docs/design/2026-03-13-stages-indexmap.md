@@ -27,28 +27,28 @@ stages:
     review: true
 ```
 
-The `name` field is redundant — it is the identity of the stage but lives inside the stage body rather than serving as the key.
+The `name` field is redundant -- it is the identity of the stage but lives inside the stage body rather than serving as the key.
 
 ### Problem
 
-1. **Redundancy** — The stage name appears as a field inside the map, not as the map key. This is the "list-of-maps with name field" anti-pattern.
-2. **YAML noise** — Every stage definition requires an extra `- name:` line that adds nothing conceptually.
-3. **Lookup friction** — Finding a stage by name requires `.iter().position(|s| s.name == name)` (O(n) scan) instead of direct key lookup.
+1. **Redundancy** -- The stage name appears as a field inside the map, not as the map key. This is the "list-of-maps with name field" anti-pattern.
+2. **YAML noise** -- Every stage definition requires an extra `- name:` line that adds nothing conceptually.
+3. **Lookup friction** -- Finding a stage by name requires `.iter().position(|s| s.name == name)` (O(n) scan) instead of direct key lookup.
 
 ### Goals
 
 - Replace `Vec<Stage>` with `IndexMap<String, Stage>` in the `Pipeline` struct
-- Keep `Stage.name` field but mark it `#[serde(skip_deserializing)]` — backfilled from map key via custom `Visitor`
+- Keep `Stage.name` field but mark it `#[serde(skip_deserializing)]` -- backfilled from map key via custom `Visitor`
 - Preserve insertion-order iteration (stages execute sequentially in YAML order)
 - Enable O(1) stage lookup by name
-- Minimize code churn — `stage.name` still works everywhere, no access pattern changes needed
+- Minimize code churn -- `stage.name` still works everywhere, no access pattern changes needed
 - Update all pipeline YAML files to the new map-keyed format
 - Keep `PipelineRun.stages: Vec<StageRecord>` unchanged (runtime state, different concern)
 
 ### Non-Goals
 
-- Changing the `StageRecord` or `PipelineRun` structs in `store.rs` — these track runtime execution state with position-based indexing and are a separate concern
-- Adding parallel stage execution — stages remain sequential
+- Changing the `StageRecord` or `PipelineRun` structs in `store.rs` -- these track runtime execution state with position-based indexing and are a separate concern
+- Adding parallel stage execution -- stages remain sequential
 - Changing the `.forge/{NN}-{name}.md` file naming convention
 
 ## Proposed Solution
@@ -67,7 +67,7 @@ pub struct Pipeline {
 }
 
 pub struct Stage {
-    pub name: String,          // redundant — user must type it in YAML
+    pub name: String,          // redundant -- user must type it in YAML
     pub description: String,
     pub pattern: String,
     pub references: Vec<String>,
@@ -97,7 +97,7 @@ pub struct Stage {
 }
 ```
 
-**Key:** `Stage.name` stays in the struct but is `#[serde(skip_deserializing)]` — serde ignores it during YAML parsing. The custom `deserialize_stage_map` visitor iterates map entries and sets `stage.name = key` for each one, exactly like otto and aka do.
+**Key:** `Stage.name` stays in the struct but is `#[serde(skip_deserializing)]` -- serde ignores it during YAML parsing. The custom `deserialize_stage_map` visitor iterates map entries and sets `stage.name = key` for each one, exactly like otto and aka do.
 
 ### Custom Deserializer
 
@@ -167,14 +167,14 @@ indexmap = { version = "2", features = ["serde"] }
 
 Because `Stage.name` is preserved, most existing code continues to work unchanged. The main differences are in how the `IndexMap` is iterated vs the previous `Vec`:
 
-#### Pattern 1: Indexed iteration — unchanged
+#### Pattern 1: Indexed iteration -- unchanged
 
 `stage.name` is still available, so enumerate loops work as before:
 
 ```rust
-// Before AND after — identical
+// Before AND after -- identical
 for (i, stage) in pipeline.stages.values().enumerate() {
-    println!("{}. {} — {}", i + 1, stage.name, stage.description);
+    println!("{}. {} -- {}", i + 1, stage.name, stage.description);
 }
 ```
 
@@ -194,7 +194,7 @@ let (_, stage_def) = pipeline.stages.get_index(stage_index)
 // stage_def.name still works
 ```
 
-#### Pattern 3: Lookup by name — improved
+#### Pattern 3: Lookup by name -- improved
 
 **Before:**
 ```rust
@@ -223,11 +223,11 @@ for stage in pipeline.stages.values() {
 | File | Changes | Risk |
 |------|---------|------|
 | `Cargo.toml` | Add `indexmap` dependency | None |
-| `src/pipeline.rs` | Add custom deserializer, `#[serde(skip_deserializing)]` on name, type alias, validate()/all_references_for_stage() iteration | Medium — new deserializer code |
-| `src/executor.rs` | `get_index()` for positional access, `get_index_of()` for name lookup; `stage.name` still works so most code unchanged | Low — `stage.name` preserved |
+| `src/pipeline.rs` | Add custom deserializer, `#[serde(skip_deserializing)]` on name, type alias, validate()/all_references_for_stage() iteration | Medium -- new deserializer code |
+| `src/executor.rs` | `get_index()` for positional access, `get_index_of()` for name lookup; `stage.name` still works so most code unchanged | Low -- `stage.name` preserved |
 | `src/briefcase.rs` | `.values()` / `.keys()` in unpack() only (pack uses StageRecord) | Low |
 | `src/lib.rs` | `.values().enumerate()` in cmd_describe(), cmd_refs() | Low |
-| `pipelines/*.yml` (5 files) | YAML format migration | Low — no runtime effect |
+| `pipelines/*.yml` (5 files) | YAML format migration | Low -- no runtime effect |
 
 ### Implementation Plan
 
@@ -239,23 +239,23 @@ for stage in pipeline.stages.values() {
 
 #### Phase 2: Implement custom deserializer in pipeline.rs
 - Write `deserialize_stage_map` following the otto/aka `Visitor` + `visit_map` pattern
-- Update `Pipeline::validate()` — iterate over `.values()` for stage validation
-- Update `Pipeline::all_references_for_stage()` — use `get_index()` for positional access
+- Update `Pipeline::validate()` -- iterate over `.values()` for stage validation
+- Update `Pipeline::all_references_for_stage()` -- use `get_index()` for positional access
 - Update tests and `sample_pipeline_yaml()` to use new YAML format
 
 #### Phase 3: Update executor.rs
-- Update `execute_stage()` — use `get_index()` for positional stage access
-- Update `compose_stage_input()` — use `get_index()` for previous stage lookup
-- Update `determine_stage_index()` — use `get_index_of()` for name lookup
-- Update `test_pipeline()` helper — construct `IndexMap` instead of `Vec`
+- Update `execute_stage()` -- use `get_index()` for positional stage access
+- Update `compose_stage_input()` -- use `get_index()` for previous stage lookup
+- Update `determine_stage_index()` -- use `get_index_of()` for name lookup
+- Update `test_pipeline()` helper -- construct `IndexMap` instead of `Vec`
 - Note: `stage.name` still works, so most test assertions are unchanged
 
 #### Phase 4: Update briefcase.rs
-- Update `unpack()` — use `.values()` for reference collection, `.keys()` for stage name collection
-- Note: `pack()` / `find_last_stage_output()` use `run.stages` (StageRecord Vec), not `pipeline.stages` — unchanged
+- Update `unpack()` -- use `.values()` for reference collection, `.keys()` for stage name collection
+- Note: `pack()` / `find_last_stage_output()` use `run.stages` (StageRecord Vec), not `pipeline.stages` -- unchanged
 
 #### Phase 5: Update lib.rs
-- Update `cmd_describe()`, `cmd_refs()` — use `.values().enumerate()` for iteration
+- Update `cmd_describe()`, `cmd_refs()` -- use `.values().enumerate()` for iteration
 
 #### Phase 6: Update YAML files
 - Convert all 5 pipeline YAML files from list format to map-keyed format
@@ -266,13 +266,13 @@ for stage in pipeline.stages.values() {
 ### Alternative 1: HashMap<String, Stage>
 - **Description:** Standard Rust HashMap keyed by stage name
 - **Pros:** O(1) lookup, standard library
-- **Cons:** No order guarantee — stages would execute in arbitrary order
+- **Cons:** No order guarantee -- stages would execute in arbitrary order
 - **Why not chosen:** Stage ordering is semantically critical; breaking it would be a correctness bug
 
 ### Alternative 2: BTreeMap<String, Stage>
 - **Description:** Sorted map keyed by stage name
 - **Pros:** Deterministic order, standard library
-- **Cons:** Sorts alphabetically, NOT insertion order — "draft" would come before "research"
+- **Cons:** Sorts alphabetically, NOT insertion order -- "draft" would come before "research"
 - **Why not chosen:** Alphabetical order is wrong; stages must run in the order defined in YAML
 
 ### Alternative 3: Vec<(String, Stage)>
@@ -291,7 +291,7 @@ for stage in pipeline.stages.values() {
 
 ### Dependencies
 
-- **indexmap 2.x** — widely used (200M+ downloads), maintained, serde-compatible. Already a transitive dependency of many Rust crates (serde_yaml itself uses it internally).
+- **indexmap 2.x** -- widely used (200M+ downloads), maintained, serde-compatible. Already a transitive dependency of many Rust crates (serde_yaml itself uses it internally).
 
 ### Performance
 
@@ -312,26 +312,26 @@ for stage in pipeline.stages.values() {
 
 ### Migration
 
-No runtime migration needed. This is a YAML format change — existing `.forge/` directories use `StageRecord` (Vec-based, unchanged). Only the pipeline definition files change format, and those are checked into the repo.
+No runtime migration needed. This is a YAML format change -- existing `.forge/` directories use `StageRecord` (Vec-based, unchanged). Only the pipeline definition files change format, and those are checked into the repo.
 
 ## Risks and Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
 | serde_yaml stops preserving map order | Very Low | High | IndexMap order preservation is a documented, tested contract; serde_yaml uses IndexMap internally |
-| Duplicate stage names in YAML silently overwrite | Low | Medium | Add validation in `Pipeline::validate()` — but YAML maps inherently reject duplicate keys (serde_yaml errors on them) |
-| `get_index()` returns `Option` where `[]` panicked | Low | Low | Safety improvement — forces explicit error handling |
+| Duplicate stage names in YAML silently overwrite | Low | Medium | Add validation in `Pipeline::validate()` -- but YAML maps inherently reject duplicate keys (serde_yaml errors on them) |
+| `get_index()` returns `Option` where `[]` panicked | Low | Low | Safety improvement -- forces explicit error handling |
 | Empty string as YAML map key | Very Low | Medium | `Pipeline::validate()` already checks for empty stage names; iterate keys instead of `stage.name` |
-| Test construction verbosity | Certain | None | Use `IndexMap::from([("name".into(), Stage { .. }), ...])` — slightly more verbose but clear |
+| Test construction verbosity | Certain | None | Use `IndexMap::from([("name".into(), Stage { .. }), ...])` -- slightly more verbose but clear |
 
 ## Open Questions
 
-None — all questions resolved during design.
+None -- all questions resolved during design.
 
 ## References
 
 - [indexmap crate](https://docs.rs/indexmap)
-- [serde_yaml map ordering](https://docs.rs/serde_yaml) — uses IndexMap internally
-- `otto/src/cfg/task.rs:515-541` — `deserialize_task_map` (same pattern, HashMap)
-- `aka/src/cfg/spec.rs:40-108` — `deserialize_alias_map` (same pattern, HashMap)
+- [serde_yaml map ordering](https://docs.rs/serde_yaml) -- uses IndexMap internally
+- `otto/src/cfg/task.rs:515-541` -- `deserialize_task_map` (same pattern, HashMap)
+- `aka/src/cfg/spec.rs:40-108` -- `deserialize_alias_map` (same pattern, HashMap)
 - Both use `#[serde(skip_deserializing)]` on `name` + custom `Visitor` with `visit_map`

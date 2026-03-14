@@ -1,4 +1,4 @@
-# techspec.yml — 4-stage technical specification pipeline
+# techspec.yml -- 4-stage technical specification pipeline
 
 name: techspec
 description: "Research, outline, draft, and review a technical specification"

@@ -123,7 +123,7 @@ pub fn pack(config: &ForgeConfig, abandon: bool) -> Result<()> {
 
     // Read run ID
     let run_id_path = forge_dir.join(RUN_ID_FILE);
-    let run_id = fs::read_to_string(&run_id_path).context("failed to read .run-id — is this a forge directory?")?;
+    let run_id = fs::read_to_string(&run_id_path).context("failed to read .run-id -- is this a forge directory?")?;
     let run_id = run_id.trim().to_string();
 
     // Load run from TaskStore

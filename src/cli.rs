@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(
     name = "forge",
-    about = "MWP Pipeline Runner — portable briefcase pattern for content pipelines",
+    about = "MWP Pipeline Runner -- portable briefcase pattern for content pipelines",
     version = env!("GIT_DESCRIBE"),
     after_help = "Logs are written to: ~/.local/share/forge/logs/forge.log"
 )]

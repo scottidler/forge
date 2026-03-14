@@ -15,7 +15,7 @@ tasks:
       if grep -rn --include='*.rs' -P '(\blet\s+(mut\s+)?|[(,]\s*|\|\s*|\bfor\s+)_[a-zA-Z]' src/; then
         echo ""
         echo "❌ Found _variable binding pattern."
-        echo "   Use _ to discard or use the variable — never _varname."
+        echo "   Use _ to discard or use the variable -- never _varname."
         exit 1
       fi
       echo "✅ No _variable patterns found"

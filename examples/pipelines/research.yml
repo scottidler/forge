@@ -1,4 +1,4 @@
-# research.yml — 3-stage research pipeline: gather, analyze, synthesize
+# research.yml -- 3-stage research pipeline: gather, analyze, synthesize
 
 name: research
 description: "Research a topic and produce a structured analysis"

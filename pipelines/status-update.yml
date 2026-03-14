@@ -1,5 +1,5 @@
 # ============================================================================
-# status-update.yml — Minimal 2-stage pipeline
+# status-update.yml -- Minimal 2-stage pipeline
 # ============================================================================
 # Demonstrates that not every pipeline needs the full research → outline →
 # draft → review chain. MWP paper (Section 5.1): "The common thread is that
@@ -19,13 +19,13 @@ output:
 
 # Layer 3 (pipeline scope): status template applies to all stages.
 # voice.md is already provided by global_references in forge.yml, so it's
-# not listed here — all_references_for_stage() merges global → pipeline →
+# not listed here -- all_references_for_stage() merges global → pipeline →
 # stage refs and deduplicates.
 references:
   - references/templates/status-update.md
 
 stages:
-  # Stage 1: Gather — pull raw signals
+  # Stage 1: Gather -- pull raw signals
   # Layer 4 input: notes, Slack threads, meeting minutes (--input)
   # Layer 4 output: .forge/01-gather.md
   gather:
@@ -33,7 +33,7 @@ stages:
     pattern: extract_article_wisdom
     review: false
 
-  # Stage 2: Draft — format into status update
+  # Stage 2: Draft -- format into status update
   # Layer 4 input: .forge/01-gather.md
   # Layer 4 output: .forge/02-draft.md (the final product)
   # The status-update template (Layer 3) determines the output structure

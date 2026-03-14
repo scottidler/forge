@@ -1,5 +1,5 @@
 # ============================================================================
-# techspec.yml — Pipeline definition (MWP Layers 1 + 2 combined)
+# techspec.yml -- Pipeline definition (MWP Layers 1 + 2 combined)
 # ============================================================================
 # In MWP, Layer 1 (CONTEXT.md) tells the agent what the workflow does and
 # which stages exist. Layer 2 (stage CONTEXT.md) tells the agent what each
@@ -11,7 +11,7 @@
 # ============================================================================
 
 # --------------------------------------------------------------------------
-# MWP Layer 1: "Where do I go?" — pipeline identity and routing
+# MWP Layer 1: "Where do I go?" -- pipeline identity and routing
 # --------------------------------------------------------------------------
 # In MWP, the workspace CONTEXT.md says: "This workspace produces technical
 # specifications. It has four stages: research, outline, draft, review."
@@ -31,7 +31,7 @@ output:
 # --------------------------------------------------------------------------
 # Pipeline-specific reference material shared across ALL stages.
 # voice.md is already provided by global_references in forge.yml, so only
-# the techspec template is listed here — all_references_for_stage() merges
+# the techspec template is listed here -- all_references_for_stage() merges
 # global → pipeline → stage refs and deduplicates.
 #
 # Combined with global_references from forge.yml and each stage's own
@@ -42,13 +42,13 @@ references:
   - references/templates/techspec.md
 
 # ============================================================================
-# Stages — each entry is an MWP Layer 2: "What do I do?"
+# Stages -- each entry is an MWP Layer 2: "What do I do?"
 # ============================================================================
 # In MWP, each numbered folder (01_research/, 02_script/, etc.) contains a
 # CONTEXT.md with three sections:
-#   ## Inputs   — what files to read (Layer 3 refs + Layer 4 artifacts)
-#   ## Process  — what to do with them
-#   ## Outputs  — what to produce
+#   ## Inputs   -- what files to read (Layer 3 refs + Layer 4 artifacts)
+#   ## Process  -- what to do with them
+#   ## Outputs  -- what to produce
 #
 # In forge, each stage entry below encodes the same contract:
 #   - description  → the "Process" section (what to do)
@@ -75,7 +75,7 @@ stages:
     # Stage-specific Layer 3: research quality rubric
     references:
       - references/rubrics/research-rubric.md
-    # No review gate — research output flows directly to next stage.
+    # No review gate -- research output flows directly to next stage.
     # MWP paper (p.13, Fig.5): practitioners edit research output 92% of
     # the time anyway, but forge lets you skip the gate for speed.
     review: false
@@ -90,7 +90,7 @@ stages:
     # Stage-specific Layer 3: the techspec template structure to follow
     references:
       - references/templates/techspec.md
-    # Review gate ON — the paper (p.11): "The structural plan determines
+    # Review gate ON -- the paper (p.11): "The structural plan determines
     # the entire arc. Getting it wrong means everything downstream is wrong."
     # This is where human judgment matters most. User edits
     # .forge/02-outline.md then runs `forge run` to approve.
@@ -103,8 +103,8 @@ stages:
   draft:
     description: "Write full draft following outline and voice"
     pattern: write_document
-    # voice.md comes from global refs — no stage-specific Layer 3 needed here
-    # Review gate ON — human reviews the full draft before final review pass
+    # voice.md comes from global refs -- no stage-specific Layer 3 needed here
+    # Review gate ON -- human reviews the full draft before final review pass
     review: true
 
   # Stage 4: Review
@@ -116,10 +116,10 @@ stages:
     pattern: review_against_rubric
     # Stage-specific Layer 3: the quality rubric to check against.
     # MWP paper (p.5, "Configure the factory, not the product"):
-    # The rubric is factory material — set up once, every spec gets
+    # The rubric is factory material -- set up once, every spec gets
     # reviewed against the same standard.
     references:
       - references/rubrics/techspec-rubric.md
-    # Review gate ON — human approves final version before `forge pack`
+    # Review gate ON -- human approves final version before `forge pack`
     # writes it to docs/design/
     review: true

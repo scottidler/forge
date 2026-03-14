@@ -24,7 +24,7 @@ pipelines:
   jira-epic: pipelines/jira-epic.yml
 ```
 
-The key always matches the filename stem. Adding a new pipeline requires editing both the YAML file and dropping the pipeline definition — a redundant two-step process.
+The key always matches the filename stem. Adding a new pipeline requires editing both the YAML file and dropping the pipeline definition -- a redundant two-step process.
 
 ### Problem
 
@@ -41,7 +41,7 @@ The explicit mapping is pure boilerplate. It violates DRY, creates friction when
 
 - Glob/regex filtering within directories
 - Nested subdirectory organization (pipelines must be top-level `.yml` files in each directory)
-- Pipeline aliasing (e.g., `ts` → `techspec`) — additive future work
+- Pipeline aliasing (e.g., `ts` → `techspec`) -- additive future work
 - Hot-reloading or watching for new pipeline files
 
 ## Proposed Solution
@@ -192,7 +192,7 @@ pub fn list_pipelines(&self) -> Result<Vec<(String, PathBuf)>> {
 - **Description:** `pipelines: { pipelines: "*" }`
 - **Pros:** Allows per-directory filtering
 - **Cons:** More complex for no current use case; glob filter is unlikely to be needed
-- **Why not chosen:** YAGNI — filtering adds complexity with no demonstrated need
+- **Why not chosen:** YAGNI -- filtering adds complexity with no demonstrated need
 
 ### Alternative 3: Keep explicit map, add directory shorthand
 - **Description:** Support both `name: path` entries and bare directory strings in a mixed list
@@ -208,7 +208,7 @@ No new crate dependencies. Uses `std::fs::read_dir` and existing `shellexpand`.
 
 ### Performance
 
-Directory scanning is negligible — typically 5-20 files per directory, done once at command startup. No caching needed.
+Directory scanning is negligible -- typically 5-20 files per directory, done once at command startup. No caching needed.
 
 ### Testing Strategy
 
@@ -220,7 +220,7 @@ Directory scanning is negligible — typically 5-20 files per directory, done on
 
 ### Rollout Plan
 
-Single commit. Update config parsing, consumer code, `forge.yml`, and tests together. No backward compatibility needed — forge is pre-release.
+Single commit. Update config parsing, consumer code, `forge.yml`, and tests together. No backward compatibility needed -- forge is pre-release.
 
 ## Risks and Mitigations
 
@@ -232,7 +232,7 @@ Single commit. Update config parsing, consumer code, `forge.yml`, and tests toge
 
 ## Design Decisions
 
-- **Shadowed entries:** `forge pipelines` shows only the winning entry. Shadowed pipelines are not displayed — this matches `$PATH` behavior (you don't see every `ls` binary on your system). Users who need to debug can check the directories directly.
+- **Shadowed entries:** `forge pipelines` shows only the winning entry. Shadowed pipelines are not displayed -- this matches `$PATH` behavior (you don't see every `ls` binary on your system). Users who need to debug can check the directories directly.
 - **Non-existent directories:** Warning, not error. A shared directory (e.g., `~/shared-pipelines/`) may not exist on every machine. Erroring would break portability of `forge.yml` across environments. `log::warn` ensures visibility for debugging.
 - **Invalid `.yml` files:** Discovery only reads filenames, not file contents. A malformed pipeline file is only an error when you try to use it (`forge unpack bad-pipeline`), not when listing. This keeps `forge pipelines` resilient.
 - **Empty pipelines list:** Valid config. `forge pipelines` shows "No pipelines configured." and `forge unpack <anything>` errors with "unknown pipeline" listing the (empty) search path.

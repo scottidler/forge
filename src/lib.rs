@@ -70,7 +70,7 @@ fn cmd_describe(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<
         }
         let review_tag = if stage.review { " [review gate]".yellow().to_string() } else { String::new() };
         println!(
-            "  {}. {} — {}{}",
+            "  {}. {} -- {}{}",
             i + 1,
             stage.name.bold(),
             stage.description,
@@ -165,7 +165,7 @@ fn cmd_ls(config: &ForgeConfig, all: bool) -> Result<()> {
             "complete".to_string()
         };
         println!(
-            "  {} {} [{}] {} — {}",
+            "  {} {} [{}] {} -- {}",
             &run.id[..8].dimmed(),
             run.pipeline.cyan(),
             run.status.to_string().yellow(),
@@ -261,7 +261,7 @@ fn cmd_history(config: &ForgeConfig, pipeline_filter: Option<&str>, limit: usize
             .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
             .unwrap_or_else(|| "unknown".to_string());
         println!(
-            "  {} {} [{}] {} — {}",
+            "  {} {} [{}] {} -- {}",
             &run.id[..8].dimmed(),
             run.pipeline.cyan(),
             run.status.to_string().yellow(),

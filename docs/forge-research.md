@@ -1,4 +1,4 @@
-# Forge Design Research — Dependency Exploration
+# Forge Design Research -- Dependency Exploration
 
 Gathered 2026-03-12 as input for the forge design document.
 
@@ -6,7 +6,7 @@ Gathered 2026-03-12 as input for the forge design document.
 
 ## 1. TaskStore (`~/repos/scottidler/taskstore`)
 
-### Data Model — Record Trait
+### Data Model -- Record Trait
 
 All storable types implement the `Record` trait:
 
@@ -145,7 +145,7 @@ Commands:
 - **Version**: 0.2.1 (edition 2024)
 - **Key deps**: rusqlite 0.38.0 (bundled), serde_json 1.0.149, serde 1.0.228, clap 4.5.54, uuid 1.19.0 (v7), chrono 0.4, fs2 0.4, eyre 0.6.12, tracing 0.1.44, colored 3.0.0, dirs 6.0.0
 
-### Git Integration — Custom Merge Driver
+### Git Integration -- Custom Merge Driver
 
 Binary: `taskstore-merge` (installed via `.gitattributes`):
 
@@ -161,7 +161,7 @@ Three-way merge logic:
 - Modified in both → newer `updated_at` wins
 - Same timestamp → conflict markers
 
-Git hooks (installed by `install_git_hooks()`): pre-commit, post-merge, post-rebase, pre-push, post-checkout — all run `taskstore sync`.
+Git hooks (installed by `install_git_hooks()`): pre-commit, post-merge, post-rebase, pre-push, post-checkout -- all run `taskstore sync`.
 
 ### File Structure on Disk
 
@@ -499,12 +499,12 @@ Flags: `--author`, `--directory`, `--config`, `--no-git`, `--no-sample-config`, 
 
 ### Default Dependencies
 
-- **clap** (derive) — CLI parsing
-- **eyre** — Error handling
-- **log** + **env_logger** — Logging to file
-- **serde** + **serde_yaml** (derive) — YAML config
-- **dirs** — Platform-aware directories
-- **colored** — Terminal colors
+- **clap** (derive) -- CLI parsing
+- **eyre** -- Error handling
+- **log** + **env_logger** -- Logging to file
+- **serde** + **serde_yaml** (derive) -- YAML config
+- **dirs** -- Platform-aware directories
+- **colored** -- Terminal colors
 
 ### Generated Source Files
 
@@ -525,12 +525,12 @@ pub struct Cli {
 }
 ```
 
-**src/config.rs** — YAML config with fallback chain:
+**src/config.rs** -- YAML config with fallback chain:
 - Primary: `~/.config/{project}/{project}.yml`
 - Fallback: `./{project}.yml` (local)
 - Ultimate fallback: hardcoded defaults
 
-**build.rs** — `git describe --tags --always` → `GIT_DESCRIBE` env var
+**build.rs** -- `git describe --tags --always` → `GIT_DESCRIBE` env var
 
 ### .otto.yml CI/CD Tasks
 

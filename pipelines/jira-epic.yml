@@ -1,5 +1,5 @@
 # ============================================================================
-# jira-epic.yml — Same factory shape, different product
+# jira-epic.yml -- Same factory shape, different product
 # ============================================================================
 # Compare this with techspec.yml and confluence-doc.yml: all three share
 # the research → structure → write pattern. The difference is what Layer 3
@@ -19,7 +19,7 @@ output:
 
 # Layer 3 (pipeline scope): no pipeline-level references.
 # voice.md is already provided by global_references in forge.yml, so
-# listing it here would be redundant — all_references_for_stage() merges
+# listing it here would be redundant -- all_references_for_stage() merges
 # global → pipeline → stage refs and deduplicates.
 #
 # This is a spot where adding a references/templates/jira-epic.md would
@@ -27,7 +27,7 @@ output:
 # For now, the pipeline inherits global refs only.
 
 stages:
-  # Stage 1: Research — gather requirements
+  # Stage 1: Research -- gather requirements
   # Same pattern as techspec and confluence-doc stage 1.
   # MWP principle: "A stage that fetches data does not also filter it."
   research:
@@ -35,17 +35,17 @@ stages:
     pattern: extract_article_wisdom
     review: false
 
-  # Stage 2: Breakdown — structure into stories
+  # Stage 2: Breakdown -- structure into stories
   # Uses create_outline (same as techspec/confluence outline stages)
   # but the description tells fabric to produce stories with acceptance
   # criteria rather than document sections. The description IS the
-  # Layer 2 contract — "what do I do?"
+  # Layer 2 contract -- "what do I do?"
   breakdown:
     description: "Break work into stories with acceptance criteria"
     pattern: create_outline
     review: true
 
-  # Stage 3: Draft — write the epic and stories
+  # Stage 3: Draft -- write the epic and stories
   # Layer 4 input: .forge/02-breakdown.md (reviewed story breakdown)
   # Layer 4 output: .forge/03-draft.md (final epic description)
   draft:

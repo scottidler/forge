@@ -17,7 +17,7 @@ pub fn run_stage(config: &ForgeConfig, stage_name: Option<&str>, input: Option<&
     let forge_dir = cwd.join(FORGE_DIR);
 
     if !forge_dir.exists() {
-        return Err(eyre!("no .forge/ directory — run `forge unpack` first"));
+        return Err(eyre!("no .forge/ directory -- run `forge unpack` first"));
     }
 
     // Load run from TaskStore
@@ -58,7 +58,7 @@ pub fn run_stage(config: &ForgeConfig, stage_name: Option<&str>, input: Option<&
         run.status = RunStatus::Completed;
         run.touch();
         store.update(run)?;
-        println!("{} All stages complete — run `forge pack` to finalize", "ok".green());
+        println!("{} All stages complete -- run `forge pack` to finalize", "ok".green());
         return Ok(());
     }
 
@@ -81,7 +81,7 @@ fn determine_stage_index(run: &PipelineRun, pipeline: &Pipeline, stage_name: Opt
         }
         // Otherwise find next pending
         find_next_pending(run, run.current_stage)
-            .ok_or_else(|| eyre!("all stages are complete — run `forge pack` to finalize"))
+            .ok_or_else(|| eyre!("all stages are complete -- run `forge pack` to finalize"))
     }
 }
 
@@ -174,7 +174,7 @@ fn execute_stage(
             run.status = RunStatus::Completed;
             run.touch();
             store.update(run.clone())?;
-            println!("{} All stages complete — run `forge pack` to finalize", "ok".green());
+            println!("{} All stages complete -- run `forge pack` to finalize", "ok".green());
         }
     }
 
@@ -254,7 +254,7 @@ pub fn check_fabric_available(binary: &str) -> Result<()> {
     match Command::new("which").arg(binary).output() {
         Ok(output) if output.status.success() => Ok(()),
         _ => Err(eyre!(
-            "'{}' not found in PATH — install fabric or set fabric.binary in forge.yml",
+            "'{}' not found in PATH -- install fabric or set fabric.binary in forge.yml",
             binary
         )),
     }
@@ -273,7 +273,7 @@ fn call_fabric(binary: &str, pattern: &str, model: &str, input: &str) -> Result<
     cmd.stderr(Stdio::piped());
 
     let mut child = cmd.spawn().context(format!(
-        "failed to start fabric — is '{}' installed and in PATH?",
+        "failed to start fabric -- is '{}' installed and in PATH?",
         binary
     ))?;
 
