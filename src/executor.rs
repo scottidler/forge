@@ -120,16 +120,39 @@ fn execute_stage(
     run.touch();
     store.update(run.clone())?;
 
-    // Build input for fabric
-    let fabric_input = compose_stage_input(config, pipeline, stage_index, forge_dir, cli_input)?;
+    // Build input for command
+    let stage_input = compose_stage_input(config, pipeline, stage_index, forge_dir, cli_input)?;
 
-    // Execute fabric
-    let output = call_fabric(
-        &config.fabric.binary,
-        &stage_def.fabric_pattern,
-        &config.fabric.model,
-        &fabric_input,
-    )?;
+    // Build template variables
+    let mut vars = std::collections::HashMap::new();
+    vars.insert("stage", stage_def.name.clone());
+    vars.insert("stage_num", stage_num.to_string());
+    vars.insert("forge_dir", forge_dir.to_string_lossy().to_string());
+    vars.insert("run_id", run.id.clone());
+    vars.insert("pipeline", run.pipeline.clone());
+    if stage_index > 0
+        && let Some((_, prev)) = pipeline.stages.get_index(stage_index - 1)
+    {
+        let prev_file = forge_dir.join(format!("{:02}-{}.md", stage_index, prev.name));
+        vars.insert("prev_output", prev_file.to_string_lossy().to_string());
+    }
+
+    // Expand template variables in args
+    let expanded_args: Vec<String> = stage_def.args.iter().map(|arg| expand_template(arg, &vars)).collect();
+
+    // Build environment variables
+    let mut env_vars = std::collections::HashMap::new();
+    env_vars.insert("FORGE_DIR".to_string(), forge_dir.to_string_lossy().to_string());
+    env_vars.insert("FORGE_STAGE".to_string(), stage_def.name.clone());
+    env_vars.insert("FORGE_RUN_ID".to_string(), run.id.clone());
+    env_vars.insert("FORGE_PIPELINE".to_string(), run.pipeline.clone());
+
+    let working_dir = forge_dir
+        .parent()
+        .ok_or_else(|| eyre!("cannot determine working directory"))?;
+
+    // Execute command
+    let output = call_command(&stage_def.command, &expanded_args, &stage_input, working_dir, &env_vars)?;
 
     // Write output to .forge/<NN>-<name>.md
     let output_file = forge_dir.join(format!("{:02}-{}.md", stage_num, stage_def.name));
@@ -249,45 +272,61 @@ fn compose_stage_input(
     Ok(parts.join("\n\n"))
 }
 
-/// Check if fabric is available in PATH
-pub fn check_fabric_available(binary: &str) -> Result<()> {
-    match Command::new("which").arg(binary).output() {
-        Ok(output) if output.status.success() => Ok(()),
-        _ => Err(eyre!(
-            "'{}' not found in PATH -- install fabric or set fabric.binary in forge.yml",
-            binary
-        )),
+fn expand_template(arg: &str, vars: &std::collections::HashMap<&str, String>) -> String {
+    let mut result = arg.to_string();
+    for (key, value) in vars {
+        result = result.replace(&format!("{{{}}}", key), value);
     }
+    result
 }
 
-fn call_fabric(binary: &str, pattern: &str, model: &str, input: &str) -> Result<String> {
-    let mut cmd = Command::new(binary);
-    cmd.arg("-p").arg(pattern);
-
-    if !model.is_empty() {
-        cmd.arg("-m").arg(model);
-    }
-
+fn call_command(
+    command: &str,
+    args: &[String],
+    input: &str,
+    working_dir: &Path,
+    env_vars: &std::collections::HashMap<String, String>,
+) -> Result<String> {
+    let mut cmd = Command::new(command);
+    cmd.args(args);
+    cmd.current_dir(working_dir);
     cmd.stdin(Stdio::piped());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().context(format!(
-        "failed to start fabric -- is '{}' installed and in PATH?",
-        binary
-    ))?;
-
-    if let Some(ref mut stdin) = child.stdin {
-        stdin
-            .write_all(input.as_bytes())
-            .context("failed to write to fabric stdin")?;
+    for (k, v) in env_vars {
+        cmd.env(k, v);
     }
 
-    let output = child.wait_with_output().context("failed to wait for fabric")?;
+    let mut child = cmd
+        .spawn()
+        .context(format!("failed to start command: {} {}", command, args.join(" ")))?;
+
+    {
+        let stdin = child.stdin.take().ok_or_else(|| eyre!("failed to open stdin"))?;
+        let mut writer = std::io::BufWriter::new(stdin);
+        writer
+            .write_all(input.as_bytes())
+            .context("failed to write to command stdin")?;
+    } // stdin dropped here, sending EOF
+
+    let output = child.wait_with_output().context("failed to wait for command")?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(eyre!("fabric failed (exit {}): {}", output.status, stderr));
+        return Err(eyre!(
+            "command failed (exit {}): {}\nCommand: {} {}",
+            output.status,
+            stderr,
+            command,
+            args.join(" ")
+        ));
+    }
+
+    // Pass through stderr (commands may log progress there)
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !stderr.is_empty() {
+        eprintln!("{}", stderr);
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -306,7 +345,8 @@ mod tests {
             Stage {
                 name: "research".to_string(),
                 description: "Gather context".to_string(),
-                fabric_pattern: "extract_article_wisdom".to_string(),
+                command: "fabric".to_string(),
+                args: vec!["-p".to_string(), "extract_article_wisdom".to_string()],
                 references: vec![],
                 review: false,
             },
@@ -316,7 +356,8 @@ mod tests {
             Stage {
                 name: "outline".to_string(),
                 description: "Create outline".to_string(),
-                fabric_pattern: "create_outline".to_string(),
+                command: "fabric".to_string(),
+                args: vec!["-p".to_string(), "create_outline".to_string()],
                 references: vec!["references/templates/techspec.md".to_string()],
                 review: true,
             },
@@ -350,7 +391,6 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: dir.path().join("store").to_string_lossy().to_string(),
             pipelines: vec![],
-            fabric: crate::config::FabricConfig::default(),
             global_references: vec![],
         };
 
@@ -376,7 +416,6 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: dir.path().join("store").to_string_lossy().to_string(),
             pipelines: vec![],
-            fabric: crate::config::FabricConfig::default(),
             global_references: vec![],
         };
 
@@ -399,7 +438,6 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: dir.path().join("store").to_string_lossy().to_string(),
             pipelines: vec![],
-            fabric: crate::config::FabricConfig::default(),
             global_references: vec![],
         };
 

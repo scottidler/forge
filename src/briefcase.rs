@@ -4,7 +4,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::config::ForgeConfig;
-use crate::executor;
 use crate::pipeline::Pipeline;
 use crate::store::{self, PipelineRun, RunStatus};
 
@@ -28,9 +27,6 @@ pub fn unpack(config: &ForgeConfig, pipeline_name: &str, input: Option<&str>, sl
     // Load and validate pipeline
     let pipeline_path = config.pipeline_path(pipeline_name)?;
     let pipeline = Pipeline::load(&pipeline_path)?;
-
-    // Check fabric availability
-    executor::check_fabric_available(&config.fabric.binary)?;
 
     // Create .forge/ directory
     fs::create_dir_all(&forge_dir).context("failed to create .forge/")?;

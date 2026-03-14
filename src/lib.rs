@@ -76,7 +76,12 @@ fn cmd_describe(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<
             stage.description,
             review_tag
         );
-        println!("     fabric-pattern: {}", stage.fabric_pattern.dimmed());
+        let cmd_display = if stage.args.is_empty() {
+            stage.command.clone()
+        } else {
+            format!("{} {}", stage.command, stage.args.join(" "))
+        };
+        println!("     command: {}", cmd_display.dimmed());
         if !stage.references.is_empty() {
             for r in &stage.references {
                 println!("     ref: {}", r.dimmed());
@@ -284,7 +289,6 @@ mod tests {
             home: dir.to_string_lossy().to_string(),
             store: dir.join("store").to_string_lossy().to_string(),
             pipelines: vec![],
-            fabric: crate::config::FabricConfig::default(),
             global_references: vec![],
         }
     }
@@ -393,7 +397,7 @@ mod tests {
         std::fs::create_dir_all(&pipelines_dir).expect("failed to create dir");
         std::fs::write(
             pipelines_dir.join("techspec.yml"),
-            "name: techspec\ndescription: test\noutput:\n  destination: .\n  filename: out.md\nstages:\n  s1:\n    description: d\n    fabric-pattern: p\n",
+            "name: techspec\ndescription: test\noutput:\n  destination: .\n  filename: out.md\nstages:\n  s1:\n    description: d\n    command: echo\n",
         )
         .expect("failed to write");
         let mut config = test_config(dir.path());

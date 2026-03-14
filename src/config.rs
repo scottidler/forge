@@ -17,21 +17,7 @@ pub struct ForgeConfig {
     #[serde(default)]
     pub pipelines: Vec<String>,
     #[serde(default)]
-    pub fabric: FabricConfig,
-    #[serde(default)]
     pub global_references: Vec<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct FabricConfig {
-    #[serde(default = "default_fabric_binary")]
-    pub binary: String,
-    #[serde(default)]
-    pub model: String,
-}
-
-fn default_fabric_binary() -> String {
-    "fabric".to_string()
 }
 
 impl ForgeConfig {
@@ -168,9 +154,6 @@ mod tests {
   store: /tmp/forge-store
   pipelines:
     - pipelines/
-  fabric:
-    binary: fabric
-    model: ""
   global_references:
     - references/voice.md
 "#
@@ -209,7 +192,7 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["pipelines/".to_string()],
-            fabric: FabricConfig::default(),
+
             global_references: vec![],
         };
         let path = config.pipeline_path("techspec").expect("failed to resolve");
@@ -227,7 +210,7 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["pipelines/".to_string()],
-            fabric: FabricConfig::default(),
+
             global_references: vec![],
         };
         assert!(config.pipeline_path("nonexistent").is_err());
@@ -249,7 +232,7 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["local/".to_string(), "shared/".to_string()],
-            fabric: FabricConfig::default(),
+
             global_references: vec![],
         };
         assert!(config.pipeline_path("techspec").is_ok());
@@ -272,7 +255,7 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["local/".to_string(), "shared/".to_string()],
-            fabric: FabricConfig::default(),
+
             global_references: vec![],
         };
         let path = config.pipeline_path("techspec").expect("failed to resolve");
@@ -293,7 +276,7 @@ mod tests {
             home: dir.path().to_string_lossy().to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["pipelines/".to_string()],
-            fabric: FabricConfig::default(),
+
             global_references: vec![],
         };
         let list = config.list_pipelines().expect("failed to list");
@@ -310,7 +293,7 @@ mod tests {
             home: "/tmp/nonexistent".to_string(),
             store: "/tmp/store".to_string(),
             pipelines: vec!["pipelines/".to_string()],
-            fabric: FabricConfig::default(),
+
             global_references: vec![],
         };
         let list = config.list_pipelines().expect("failed to list");
