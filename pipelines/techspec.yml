@@ -52,7 +52,7 @@ references:
 #
 # In forge, each stage entry below encodes the same contract:
 #   - description  → the "Process" section (what to do)
-#   - pattern      → the executor (which fabric pattern runs this)
+#   - fabric-pattern → the executor (which fabric pattern runs this)
 #   - references   → the "Inputs" section (Layer 3 portion)
 #   - review       → whether there's a human review gate after this stage
 #
@@ -71,7 +71,7 @@ stages:
   # Layer 4 output: .forge/01-research.md
   research:
     description: "Gather context, explore prior art, identify constraints and dependencies"
-    pattern: extract_article_wisdom
+    fabric-pattern: extract_article_wisdom
     # Stage-specific Layer 3: research quality rubric
     references:
       - references/rubrics/research-rubric.md
@@ -86,7 +86,7 @@ stages:
   # Layer 4 output: .forge/02-outline.md
   outline:
     description: "Create structural outline with section headers and key points"
-    pattern: create_outline
+    fabric-pattern: create_outline
     # Stage-specific Layer 3: the techspec template structure to follow
     references:
       - references/templates/techspec.md
@@ -102,7 +102,7 @@ stages:
   # Layer 4 output: .forge/03-draft.md
   draft:
     description: "Write full draft following outline and voice"
-    pattern: write_document
+    fabric-pattern: write_document
     # voice.md comes from global refs -- no stage-specific Layer 3 needed here
     # Review gate ON -- human reviews the full draft before final review pass
     review: true
@@ -113,7 +113,7 @@ stages:
   # Layer 4 output: .forge/04-review.md (the final product)
   review:
     description: "Self-review against rubric, produce final version"
-    pattern: review_against_rubric
+    fabric-pattern: review_against_rubric
     # Stage-specific Layer 3: the quality rubric to check against.
     # MWP paper (p.5, "Configure the factory, not the product"):
     # The rubric is factory material -- set up once, every spec gets

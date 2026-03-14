@@ -30,7 +30,8 @@ pub struct Stage {
     #[serde(skip_deserializing)]
     pub name: String,
     pub description: String,
-    pub pattern: String,
+    #[serde(rename = "fabric-pattern")]
+    pub fabric_pattern: String,
     #[serde(default)]
     pub references: Vec<String>,
     #[serde(default)]
@@ -85,9 +86,9 @@ impl Pipeline {
             if name.is_empty() {
                 return Err(eyre::eyre!("stage has empty name in pipeline '{}'", self.name));
             }
-            if stage.pattern.is_empty() {
+            if stage.fabric_pattern.is_empty() {
                 return Err(eyre::eyre!(
-                    "stage '{}' has no pattern in pipeline '{}'",
+                    "stage '{}' has no fabric-pattern in pipeline '{}'",
                     name,
                     self.name
                 ));
@@ -125,17 +126,17 @@ references:
 stages:
   research:
     description: "Gather context"
-    pattern: extract_article_wisdom
+    fabric-pattern: extract_article_wisdom
     review: false
   outline:
     description: "Create outline"
-    pattern: create_outline
+    fabric-pattern: create_outline
     references:
       - references/templates/techspec.md
     review: true
   draft:
     description: "Write full draft"
-    pattern: write_document
+    fabric-pattern: write_document
     review: true
 "#
     }
@@ -164,7 +165,7 @@ output:
 stages:
   s1:
     description: "d"
-    pattern: p
+    fabric-pattern: p
 "#;
         let mut tmp = NamedTempFile::with_suffix(".yml").expect("failed to create temp file");
         write!(tmp, "{}", yaml).expect("failed to write");

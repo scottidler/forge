@@ -36,7 +36,7 @@ stages:
   # context. MWP principle: "one stage, one job."
   research:
     description: "Gather context and background for the document topic"
-    pattern: extract_article_wisdom
+    fabric-pattern: extract_article_wisdom
     review: false
 
   # Stage 2: outline -- this is where the Confluence template (Layer 3)
@@ -44,7 +44,7 @@ stages:
   # Same fabric pattern (create_outline), different reference material.
   outline:
     description: "Create document outline following Confluence template structure"
-    pattern: create_outline
+    fabric-pattern: create_outline
     references:
       - references/templates/confluence-doc.md
     review: true
@@ -52,5 +52,5 @@ stages:
   # Stage 3: draft -- voice.md (from global refs) ensures consistent tone
   draft:
     description: "Write full document following outline, voice, and Confluence formatting"
-    pattern: write_document
+    fabric-pattern: write_document
     review: true

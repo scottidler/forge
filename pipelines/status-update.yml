@@ -30,7 +30,7 @@ stages:
   # Layer 4 output: .forge/01-gather.md
   gather:
     description: "Gather accomplishments, blockers, and next steps from notes"
-    pattern: extract_article_wisdom
+    fabric-pattern: extract_article_wisdom
     review: false
 
   # Stage 2: Draft -- format into status update
@@ -39,7 +39,7 @@ stages:
   # The status-update template (Layer 3) determines the output structure
   draft:
     description: "Write concise status update following template"
-    pattern: write_document
+    fabric-pattern: write_document
     references:
       - references/templates/status-update.md
     review: true

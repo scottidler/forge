@@ -76,7 +76,7 @@ fn cmd_describe(config: &ForgeConfig, pipeline_name: &str, stage_filter: Option<
             stage.description,
             review_tag
         );
-        println!("     pattern: {}", stage.pattern.dimmed());
+        println!("     fabric-pattern: {}", stage.fabric_pattern.dimmed());
         if !stage.references.is_empty() {
             for r in &stage.references {
                 println!("     ref: {}", r.dimmed());
@@ -393,7 +393,7 @@ mod tests {
         std::fs::create_dir_all(&pipelines_dir).expect("failed to create dir");
         std::fs::write(
             pipelines_dir.join("techspec.yml"),
-            "name: techspec\ndescription: test\noutput:\n  destination: .\n  filename: out.md\nstages:\n  s1:\n    description: d\n    pattern: p\n",
+            "name: techspec\ndescription: test\noutput:\n  destination: .\n  filename: out.md\nstages:\n  s1:\n    description: d\n    fabric-pattern: p\n",
         )
         .expect("failed to write");
         let mut config = test_config(dir.path());

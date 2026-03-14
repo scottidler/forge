@@ -126,7 +126,7 @@ fn execute_stage(
     // Execute fabric
     let output = call_fabric(
         &config.fabric.binary,
-        &stage_def.pattern,
+        &stage_def.fabric_pattern,
         &config.fabric.model,
         &fabric_input,
     )?;
@@ -306,7 +306,7 @@ mod tests {
             Stage {
                 name: "research".to_string(),
                 description: "Gather context".to_string(),
-                pattern: "extract_article_wisdom".to_string(),
+                fabric_pattern: "extract_article_wisdom".to_string(),
                 references: vec![],
                 review: false,
             },
@@ -316,7 +316,7 @@ mod tests {
             Stage {
                 name: "outline".to_string(),
                 description: "Create outline".to_string(),
-                pattern: "create_outline".to_string(),
+                fabric_pattern: "create_outline".to_string(),
                 references: vec!["references/templates/techspec.md".to_string()],
                 review: true,
             },

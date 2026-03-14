@@ -31,7 +31,7 @@ stages:
   # No stage-specific Layer 3 refs -- just the global voice.md
   gather:
     description: "Gather raw information, links, quotes, and data points about the topic"
-    pattern: extract_article_wisdom
+    fabric-pattern: extract_article_wisdom
     review: false
 
   # Stage 2: Analyze -- the "transformation" pass
@@ -41,7 +41,7 @@ stages:
   # before the final synthesis pass
   analyze:
     description: "Analyze gathered information, identify patterns, compare alternatives"
-    pattern: analyze_paper
+    fabric-pattern: analyze_paper
     review: true
 
   # Stage 3: Synthesize -- the "production" pass
@@ -49,5 +49,5 @@ stages:
   # Layer 4 output: .forge/03-synthesize.md (the final product)
   synthesize:
     description: "Synthesize analysis into a structured document with recommendations"
-    pattern: write_document
+    fabric-pattern: write_document
     review: true
