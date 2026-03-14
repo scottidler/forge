@@ -1,0 +1,11 @@
+forge:
+  version: "1"
+  home: ~/.config/forge
+  store: ~/.local/share/forge
+  pipelines:
+    - pipelines/
+  fabric:
+    binary: fabric
+    model: ""
+  global_references:
+    - references/voice.md

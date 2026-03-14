@@ -1,0 +1,37 @@
+# techspec.yml — 4-stage technical specification pipeline
+
+name: techspec
+description: "Research, outline, draft, and review a technical specification"
+
+output:
+  destination: "docs/design/"
+  filename: "{date}-{slug}.md"
+
+# Pipeline-level reference: techspec template structure
+references:
+  - references/templates/techspec.md
+
+stages:
+  research:
+    description: "Gather context, explore prior art, identify constraints and dependencies"
+    pattern: extract_article_wisdom
+    review: false
+
+  outline:
+    description: "Create structural outline with section headers and key points"
+    pattern: create_outline
+    references:
+      - references/templates/techspec.md
+    review: true
+
+  draft:
+    description: "Write full draft following outline and voice"
+    pattern: write_document
+    review: true
+
+  review:
+    description: "Self-review against rubric, produce final version"
+    pattern: review_against_rubric
+    references:
+      - references/rubrics/techspec-rubric.md
+    review: true

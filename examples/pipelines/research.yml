@@ -1,0 +1,24 @@
+# research.yml — 3-stage research pipeline: gather, analyze, synthesize
+
+name: research
+description: "Research a topic and produce a structured analysis"
+
+output:
+  destination: "docs/"
+  filename: "{date}-{slug}-research.md"
+
+stages:
+  gather:
+    description: "Gather raw information, links, quotes, and data points about the topic"
+    pattern: extract_article_wisdom
+    review: false
+
+  analyze:
+    description: "Analyze gathered information, identify patterns, compare alternatives"
+    pattern: analyze_paper
+    review: true
+
+  synthesize:
+    description: "Synthesize analysis into a structured document with recommendations"
+    pattern: write_document
+    review: true
