@@ -26,7 +26,7 @@ fn resolve_log_level(cli_level: Option<&str>, config_level: Option<&str>) -> Str
 }
 
 fn setup_logging(level: &str) -> Result<()> {
-    let log_dir = dirs::data_local_dir()
+    let log_dir = forge::config::xdg_data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("forge")
         .join("logs");

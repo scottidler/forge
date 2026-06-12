@@ -5,6 +5,33 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// XDG config dir, honoring `$XDG_CONFIG_HOME` and falling back to `$HOME/.config`.
+pub fn xdg_config_dir() -> Option<PathBuf> {
+    if let Ok(dir) = std::env::var("XDG_CONFIG_HOME") {
+        let path = PathBuf::from(dir);
+        if path.is_absolute() {
+            return Some(path);
+        }
+    }
+    dirs::home_dir().map(|h| h.join(".config"))
+}
+
+/// XDG data dir, honoring `$XDG_DATA_HOME` and falling back to `$HOME/.local/share`.
+///
+/// We deliberately do NOT use the `dirs` config/data helpers: those honor
+/// `$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` only on Linux. On macOS they resolve via system
+/// APIs and return `~/Library/...`, ignoring the env vars. These helpers resolve to the
+/// same XDG layout on every platform.
+pub fn xdg_data_dir() -> Option<PathBuf> {
+    if let Ok(dir) = std::env::var("XDG_DATA_HOME") {
+        let path = PathBuf::from(dir);
+        if path.is_absolute() {
+            return Some(path);
+        }
+    }
+    dirs::home_dir().map(|h| h.join(".local").join("share"))
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ForgeConfigWrapper {
     pub forge: ForgeConfig,
@@ -116,7 +143,7 @@ impl ForgeConfig {
         }
 
         // Try ~/.config/forge/forge.yml
-        if let Some(config_dir) = dirs::config_dir() {
+        if let Some(config_dir) = xdg_config_dir() {
             let path = config_dir.join("forge").join("forge.yml");
             if path.exists() {
                 match Self::load_from_file(&path) {
