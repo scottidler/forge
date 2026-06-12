@@ -883,23 +883,33 @@ dependencies = [
 
 [[package]]
 name = "taskstore"
-version = "0.2.1"
+version = "0.6.1"
+source = "git+ssh://git@github.com/scottidler/taskstore?tag=v0.6.1#6644bc7427d3d87f1ea59aaad5aba2310d120f00"
 dependencies = [
  "chrono",
  "clap",
  "colored",
  "dirs",
  "env_logger",
- "eyre",
  "fs2",
  "log",
  "rusqlite",
  "serde",
  "serde_json",
  "serde_yaml",
+ "taskstore-traits",
+ "thiserror",
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "taskstore-traits"
+version = "0.6.1"
+source = "git+ssh://git@github.com/scottidler/taskstore?tag=v0.6.1#6644bc7427d3d87f1ea59aaad5aba2310d120f00"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

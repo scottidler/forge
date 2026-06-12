@@ -179,7 +179,7 @@ fn simulate_unpack(dir: &Path, config: &ForgeConfig, pipeline: &Pipeline) -> (Pa
 
 #[test]
 fn real_pipelines_all_parse_and_validate() {
-    let forge_home = dirs::config_dir().expect("config dir").join("forge");
+    let forge_home = forge::config::xdg_config_dir().expect("config dir").join("forge");
 
     if !forge_home.join("pipelines").exists() {
         eprintln!("Skipping: ~/.config/forge/pipelines/ not found (run `forge init` first)");

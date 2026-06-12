@@ -139,7 +139,7 @@ impl PipelineRun {
 /// Open the forge TaskStore at the configured store directory
 pub fn open_store(store_dir: &std::path::Path) -> Result<taskstore::Store> {
     debug!("open_store: store_dir={}", store_dir.display());
-    let mut store = taskstore::Store::open(store_dir)?;
+    let mut store = taskstore::Store::open_at(store_dir)?;
     store.rebuild_indexes::<PipelineRun>()?;
     Ok(store)
 }
