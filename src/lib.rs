@@ -227,7 +227,7 @@ fn cmd_ls_detailed(
                         };
                         println!(
                             "  {}  [{}]  {}   {}",
-                            &run.id[..8].dimmed(),
+                            run.id[..8].dimmed(),
                             run.status.to_string().yellow(),
                             stage_info,
                             run.working_dir.dimmed()
@@ -445,7 +445,7 @@ fn cmd_history(config: &ForgeConfig, pipeline_filter: Option<&str>, limit: usize
             .unwrap_or_else(|| "unknown".to_string());
         println!(
             "  {} {} [{}] {} -- {}",
-            &run.id[..8].dimmed(),
+            run.id[..8].dimmed(),
             run.pipeline.cyan(),
             run.status.to_string().yellow(),
             ts.dimmed(),

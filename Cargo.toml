@@ -19,7 +19,7 @@ log = "0.4.29"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_yaml = "0.9.34"
 shellexpand = "3.1.0"
-taskstore = { git = "ssh://git@github.com/scottidler/taskstore", tag = "v0.6.1" }
+taskstore = { git = "https://github.com/scottidler/taskstore", tag = "v0.6.1" }
 uuid = { version = "1", features = ["v7"] }
 terminal_size = "0.4.3"
 
